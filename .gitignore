@@ -1,0 +1,11 @@
+# Dev-only notes & evidence — NEVER publish. Lives in docs/, out of the public tree.
+# NOTE: `docs` is a symlink (docs -> ../pi-reviewer-notes) — no trailing slash, or git
+# won't match the symlink itself (a trailing slash only matches a real directory).
+docs
+
+# OS / editor cruft
+.DS_Store
+**/.DS_Store
+
+# Redacted review snapshots (pi-stage.sh) — masked copies of your code; never publish.
+.pi-review/

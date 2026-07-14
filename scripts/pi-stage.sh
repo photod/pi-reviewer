@@ -1,0 +1,82 @@
+#!/bin/bash
+# pi-stage.sh <repo-dir> [subpath] — stage a MASKED copy of the pi-filelist.sh file list into a temp dir,
+# so whole-repo reviewers read redacted files, never the raw source. Prints the temp-dir path on stdout.
+#
+# The source tree is NEVER modified — only the copy under the temp dir is masked. Fails CLOSED: if masking
+# errors, the staging dir is removed and a non-zero exit tells the caller to ABORT (never forward raw code).
+# Basic best-effort protection (common high-value keys), NOT a guarantee — see pi-mask.py / the README.
+set -euo pipefail
+umask 077  # snapshot dirs/files are owner-only (0700/0600) — they hold copies of your code
+
+repo_dir="$1"
+subpath="${2:-}"
+here="$(cd "$(dirname "$0")" && pwd)"
+
+# CONTRACT: every staged review creates a snapshot dir INSIDE the repo (auditable + kept), under a
+# self-ignored .pi-review/ — so you can inspect exactly what redacted content was sent to the models.
+# Costs disk + a copy pass; that's the price of the extra security layer. Snapshots are ms-suffixed.
+snaproot="$repo_dir/.pi-review"
+mkdir -p "$snaproot"
+printf '*\n' > "$snaproot/.gitignore"   # self-ignore: snapshots are never committed, nor re-reviewed
+
+# Keep snapshots bounded: discard anything outside the newest N, plus anything older than D days.
+# Snapshot names carry the creation timestamp, so reverse lexical order is newest-first. `nullglob`
+# makes an empty snapshot root a normal (and silent) case.
+snap_keep="${PI_SNAP_KEEP:-10}"
+snap_days="${PI_SNAP_DAYS:-7}"
+case "$snap_keep" in
+  ''|*[!0-9]*) printf 'pi-stage: PI_SNAP_KEEP must be a non-negative integer\n' >&2; exit 2 ;;
+esac
+case "$snap_days" in
+  ''|*[!0-9]*) printf 'pi-stage: PI_SNAP_DAYS must be a non-negative integer\n' >&2; exit 2 ;;
+esac
+shopt -s nullglob
+snapshots=( "$snaproot"/snap-* )
+newest=()
+newest_count=0
+for snapshot in "${snapshots[@]:-}"; do
+  [ -d "$snapshot" ] || continue
+  inserted=0
+  for ((index = 0; index < newest_count; index++)); do
+    if [[ "$snapshot" > "${newest[index]}" ]]; then
+      newest=( "${newest[@]:0:index}" "$snapshot" "${newest[@]:index}" )
+      inserted=1
+      newest_count=$((newest_count + 1))
+      break
+    fi
+  done
+  if [ "$inserted" -eq 0 ]; then
+    newest+=( "$snapshot" )
+    newest_count=$((newest_count + 1))
+  fi
+done
+for ((index = snap_keep; index < newest_count; index++)); do
+  rm -rf -- "${newest[index]}"
+done
+find "$snaproot" -mindepth 1 -maxdepth 1 -type d -name 'snap-*' -mtime +"$snap_days" -exec rm -rf -- {} +
+
+ms="$(python3 -c 'import time; print(int(time.time()*1000))')"
+stage="$snaproot/snap-${ms}-$$"
+mkdir -p "$stage"
+
+# Copy each listed (relative) file into the staging tree, preserving structure.
+"$here/pi-filelist.sh" "$repo_dir" "$subpath" | grep -v '^#' > "$stage/.pi-filelist"
+while IFS= read -r rel; do
+  [ -z "$rel" ] && continue
+  # SECURITY: never follow a symlink — it could resolve OUTSIDE the repo (e.g. a tracked link to
+  # ~/.ssh/id_rsa) and exfiltrate its target into the snapshot. Skip it; leave a visible note.
+  if [ -L "$repo_dir/$rel" ]; then printf 'pi-stage: skipped symlink (not staged): %s\n' "$rel" >&2; continue; fi
+  dest="$stage/$rel"
+  mkdir -p "$(dirname "$dest")"
+  cp "$repo_dir/$rel" "$dest"
+done < "$stage/.pi-filelist"
+rm -f "$stage/.pi-filelist"
+
+# Mask the COPIES in place; fail closed on any error.
+if ! find "$stage" -type f -print0 | xargs -0 python3 "$here/pi-mask.py"; then
+  rm -rf "$stage"
+  printf 'pi-stage: masking failed — aborting (fail-closed), no raw code forwarded\n' >&2
+  exit 1
+fi
+
+printf '%s\n' "$stage"

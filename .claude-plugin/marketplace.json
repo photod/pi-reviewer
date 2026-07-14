@@ -1,0 +1,13 @@
+{
+  "name": "pi-reviewer",
+  "owner": {
+    "name": "photod"
+  },
+  "plugins": [
+    {
+      "name": "pi",
+      "source": "./plugin",
+      "description": "Poor Intelligence: a code-review council of cheap opencode-go models instead of one pricey genius. They fan out in parallel, a glm-5.2 chairman reconciles them into one verdict. Run /pi-review [med|high|ultra] [target]."
+    }
+  ]
+}
