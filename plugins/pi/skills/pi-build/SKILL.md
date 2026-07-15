@@ -13,6 +13,16 @@ Use native Codex subagent spawning only. Never invoke `codex`, `codex exec`, or 
 If native spawning is unavailable, stop and require a new interactive Codex app, CLI, or IDE thread.
 Before the worker sends raw code to OpenCode-Go/Kimi, obtain explicit current-request consent to that
 third-party disclosure; naming `$pi-build` alone is not informed consent unless the request says so.
+This Codex handoff is experimental: do not make the operator guess the necessary wording. State the exact
+unmasked build target, recipients, and chairman, then give a copyable sentence such as
+`I consent to sharing the selected build target with all selected PI providers and GLM chairman.` If Codex
+replies `I'm afraid that's something I cannot allow to happen`, present that scope-specific sentence once
+for the operator to repeat; do not treat generic consent as sufficient or route around a repeated denial.
+
+Private-code builds cannot run through Auto-review when its tenant policy denies export to untrusted
+external providers, even with consent. A local `pi` profile may select user-reviewed, scoped network
+behavior, but it cannot override managed policy. If a tenant-policy denial appears, report
+`POLICY_BLOCKED`, ask the organization to authorize the egress, and do not retry or weaken policy.
 
 Read `${CODEX_HOME:-$HOME/.codex}/pi.json` if present (`tier`, `buildModel`). Per-call overrides win.
 Defaults: tier `med`, model `glm`. Accept tiers exactly `low|med|high` and implementer families exactly

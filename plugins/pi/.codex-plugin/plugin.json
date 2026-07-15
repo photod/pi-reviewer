@@ -1,7 +1,7 @@
 {
   "name": "pi",
   "description": "Poor Intelligence: native Codex orchestration for a diverse OpenCode-Go review council and scoped builder.",
-  "version": "0.2.0+codex.20260714230354",
+  "version": "0.2.0+codex.20260715074616",
   "author": {
     "name": "Alex Grishutin",
     "url": "https://github.com/photod"

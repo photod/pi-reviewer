@@ -7,6 +7,11 @@ const build = read('plugin/commands/pi-build.md')
 const worker = read('plugin/agents/glm-worker.md')
 const codexReview = read('plugins/pi/skills/pi-review/SKILL.md')
 const codexBuild = read('plugins/pi/skills/pi-build/SKILL.md')
+const codexSetup = read('plugins/pi/skills/pi-setup/SKILL.md')
+const piProfile = read('plugins/pi/profiles/pi.config.toml')
+const codexRouter = read('plugins/pi/skills/pi/SKILL.md')
+const codexLeaf = read('plugins/pi/agents/pi_oppy_reviewer.toml')
+const readme = read('README.md')
 
 let ok = true
 const check = (name, condition) => {
@@ -30,6 +35,22 @@ check('Codex review forbids nested Codex',
 check('Codex build forbids nested Codex',
   codexBuild.includes('Never invoke `codex`, `codex exec`') && codexBuild.includes('native Codex subagent'))
 check('Codex external disclosure is gated',
-  codexReview.includes('explicit consent') && codexBuild.includes('explicit current-request consent'))
+  codexReview.includes('scope-specific consent') && codexBuild.includes('explicit current-request consent'))
+check('Auto-review policy block is distinct',
+  codexReview.includes('POLICY_BLOCKED') && !codexReview.includes('policy block as ordinary backend downtime'))
+check('PI setup installs dedicated profile',
+  codexSetup.includes('manage_profile.py install') && codexSetup.includes('codex -p pi --sandbox workspace-write'))
+check('PI profile uses human approvals and scoped network',
+  piProfile.includes('approvals_reviewer = "user"') &&
+  piProfile.includes('sandbox_mode = "workspace-write"') &&
+  piProfile.includes('network_access = true'))
+check('Codex PI says the required consent aloud',
+  codexRouter.includes('I consent to sharing the masked N-file snapshot') &&
+  codexReview.includes('say the required sentence aloud') &&
+  codexLeaf.includes('status: NEEDS_CONSENT'))
+check('README labels Codex PI experimental and names the refusal',
+  readme.includes('Codex consent is not reliable yet') &&
+  readme.includes("I'm afraid that's something I cannot allow to happen") &&
+  readme.includes('masked 46-file snapshot'))
 
 process.exit(ok ? 0 : 1)

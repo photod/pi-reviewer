@@ -19,6 +19,9 @@ the product; Claude or Codex orchestrates them but must never replace a failed l
   weaken privacy behavior or silently fall back to raw source.
 - Review leaves are relays. Backend unavailable means `status: UNAVAILABLE`, never a host-authored
   substitute wearing another model's label.
+- Auto-review or managed tenant-policy denial is `POLICY_BLOCKED`, not `UNAVAILABLE`. The dedicated `pi`
+  CLI profile selects human approvals and workspace-scoped network but cannot override managed policy;
+  never suggest a policy bypass.
 - Builder model calls are sequential because they share a working tree. Never fan out write legs.
 
 ## Validation

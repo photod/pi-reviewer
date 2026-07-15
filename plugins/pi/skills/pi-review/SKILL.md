@@ -27,10 +27,31 @@ Kimi mode is `opencode|cli|off`; it applies only to med/high. Chairman may be an
 alias/family. Require `opencode`. Default target is `git diff HEAD` in the current repo.
 
 PI sends the selected code/diff and review prompts to third-party model endpoints through OpenCode-Go
-(or Kimi CLI). Before the first leaf, state exactly what target will be sent and ask for explicit consent
-unless the operator's current request already explicitly approves that third-party disclosure. Merely
-asking for a generic code review is not enough. If consent is absent, stop; do not test on another target
-or route around the gate.
+(or Kimi CLI). This Codex handoff is experimental and not reliable across surfaces: before the first leaf,
+determine the exact target, masking mode/file count, selected recipients, and chairman. If the current
+request does not already contain matching scope-specific consent, say the required sentence aloud rather
+than asking the operator to guess it. For example:
+
+`I consent to sharing the masked N-file snapshot with all six PI reviewers and GLM chairman.`
+
+Substitute the real file count, selected reviewer set, and chairman. For a diff or named files, name the
+actual target and say it is unmasked when that is true. A generic “yes” or generic review request is not
+enough. If Codex replies `I'm afraid that's something I cannot allow to happen`, show the concrete
+scope-specific sentence once for the operator to repeat. If matching consent is still absent, stop; do not
+test on another target or route around the gate.
+
+## Auto-review policy boundary
+
+Auto-review's default tenant policy denies private-workspace export to untrusted external providers even
+when operator authorization is high. Consent cannot override that absolute rule. Do not launch six leaves
+when the current session is known to use Auto-review; stop before packaging and say:
+
+`POLICY_BLOCKED: this Codex tenant does not permit private-code export to PI providers. A local pi profile cannot override managed policy; ask the organization to authorize the egress.`
+
+If a leaf nevertheless returns a denial mentioning tenant policy, private export, or an untrusted external
+destination, classify the run as `POLICY_BLOCKED`, cancel leaves that have not started, do not run the
+chairman, and show the same policy message. Do not retry, invoke nested Codex, use danger-full-access,
+alter Auto-review policy, disguise the transfer, or treat the denial as ordinary backend downtime.
 
 For a diff, branch, or named files, review that exact target as-is. For a whole repo or bare directory:
 
@@ -44,10 +65,14 @@ For a diff, branch, or named files, review that exact target as-is. For a whole 
 
 Spawn one native `pi_oppy_reviewer` subagent per OpenCode leaf, in parallel. For Kimi CLI mode spawn
 `pi_kimi_reviewer` instead. Give every child exactly one alias, provider variant, workdir, target, access
-mode/file list, and the complete scaffolded prompt from the reference. Explicitly tell each child it is a
-relay, must not self-review, and must return OK/PARTIAL/UNAVAILABLE. Use distinct snake_case task names.
+mode/file list, and the complete scaffolded prompt from the reference. For OpenCode leaves, resolve the
+absolute path of this plugin's `../../scripts/opencode-watch.sh`, verify it is executable, and pass it as
+`WATCHDOG`; if unavailable, return every affected leaf as UNAVAILABLE rather than calling OpenCode
+directly. Explicitly tell each child it is a relay, must not self-review, and must return
+OK/PARTIAL/UNAVAILABLE. Use distinct snake_case task names.
 
-Wait for every leaf. A failed spawn or call becomes visible UNAVAILABLE; do not abort the panel. Filter
+Wait for every leaf. A failed spawn or call becomes visible UNAVAILABLE; do not abort the panel unless it
+is the policy block above. Filter
 status declarations at line starts, not a bare mention of the word. If zero leaves are usable, return the
 records and coverage without synthesis.
 

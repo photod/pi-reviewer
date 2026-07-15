@@ -75,18 +75,47 @@ codex plugin marketplace add photod/pi-reviewer
 codex plugin add pi@pi-reviewer
 ```
 
-Start a new Codex thread, invoke `$pi-setup install` once, approve installing the three bundled custom
-agent profiles, then start one more new thread so Codex loads them. That second activation step is needed
-because plugins can bundle skills but do not currently register custom-agent TOMLs themselves.
+Start a new Codex thread and invoke `$pi-setup install` once. It safely installs the three bundled custom
+agents plus a dedicated `pi` CLI profile. Plugins do not currently register either surface themselves.
 
 During local development from this checkout:
 
 ```bash
-codex plugin marketplace add ~/gh/pi-reviewer
+codex plugin marketplace add /path/to/pi-reviewer
 codex plugin add pi@pi-reviewer
 ```
 
-The installer backs up conflicting profiles, updates atomically, and only removes bytes it owns.
+The installer backs up conflicts, updates atomically, and only removes bytes it owns.
+
+Where your Codex tenant permits external review of that repository, start the PI session like this:
+
+```bash
+codex -p pi --sandbox workspace-write -C ~/path/to/private-repo
+```
+
+Then invoke `$pi high ...` inside that session. The explicit `--sandbox workspace-write` is important:
+it is a live parent override inherited by PI's read-only-default relay agents, while the named profile
+enables network and routes any remaining approvals to you instead of Auto-review. It cannot override a
+managed tenant rule that forbids private-data export.
+
+### Experimental: Codex consent is not reliable yet
+
+The Codex edition is experimental. It worked for us in a fresh interactive personal CLI session, but it
+is not a reliable “press the button and go” workflow: a generic request or a generic “yes” can be refused
+before PI launches. Codex may answer literally:
+
+> I'm afraid that's something I cannot allow to happen
+
+Do not guess a magic consent line. PI should say the exact scope statement aloud; if it does not, repeat
+this shape with the run's real facts:
+
+```text
+I consent to sharing the masked 46-file snapshot with all six PI reviewers and GLM chairman.
+```
+
+Replace `46`, `masked`, the reviewer set, and `GLM` with what PI actually plans to send. A diff or named
+file review is often unmasked, so say that instead. This is explicit disclosure consent, not a policy
+bypass: if the same scope-specific request is refused again, stop and treat the Codex run as unavailable.
 
 PI's Codex skills use native subagents only. If the current surface cannot spawn them, PI stops and asks
 you to use a fresh interactive Codex app/CLI/IDE thread; it never falls back to spawning `codex exec`.
@@ -135,6 +164,25 @@ One deliberate confirmation remains: PI sends the selected code to third-party O
 endpoints. Codex asks for explicit disclosure consent before the first leaf unless your current request
 already says that you approve sending that named target to those providers. This is not an approval-mode
 replacement; it is the data boundary PI actually crosses.
+
+### Private repositories and Auto-review
+
+Codex Auto-review deliberately denies exporting private workspace data to untrusted external providers,
+even when you explicitly consent. PI cannot and should not talk it into changing that decision. A run in
+an ordinary Auto-review session therefore ends `POLICY_BLOCKED`, not `UNAVAILABLE`.
+
+The dedicated profile installed by `$pi-setup` selects user-reviewed, network-enabled workspace behavior:
+
+```bash
+codex -p pi --sandbox workspace-write -C /absolute/path/to/private/repo
+```
+
+That is not `--yolo` or danger-full-access. Filesystem writes stay scoped to the workspace; the profile
+enables network for the sandbox and makes the human operator the approval reviewer for this deliberately
+external workflow. It is a local configuration layer, not a policy bypass: managed requirements can still
+deny private-code export even with explicit operator consent. In that case PI reports `POLICY_BLOCKED`;
+the organization must authorize the egress. Use Claude Code or an external council only where that
+separate workflow is explicitly permitted by your organization's data policy.
 
 Why those six and not some other set? Nothing handed me the list — it's the combination I've landed on and trust. Each one is strong on its own, and, more to the point, they're different enough that they don't all trip on the same things. Six great models that think alike would be worth one. These six disagree, usefully. That's why they're the ones.
 

@@ -64,8 +64,15 @@ check() {
       rc=1
     fi
   done
+  if python3 -c 'import sys,tomllib; tomllib.load(open(sys.argv[1], "rb"))' \
+      "${CODEX_PLUGIN}/profiles/pi.config.toml"; then
+    log "Codex PI profile TOML ok"
+  else
+    warn "invalid Codex PI profile TOML"
+    rc=1
+  fi
 
-  for file in pi-filelist.sh pi-stage.sh pi-mask.py masker-rules.md pi-mask.config.example.json; do
+  for file in pi-filelist.sh pi-stage.sh pi-mask.py masker-rules.md pi-mask.config.example.json opencode-watch.sh; do
     if cmp -s -- "${REPO_DIR}/scripts/${file}" "${CODEX_PLUGIN}/scripts/${file}"; then
       log "bundled script in sync: ${file}"
     else
@@ -93,6 +100,17 @@ check() {
     log "Codex agent manager lifecycle ok"
   else
     warn "Codex agent manager lifecycle failed"
+    rc=1
+  fi
+  rm -rf -- "${temp_home}"
+
+  temp_home="$(mktemp -d)"
+  if CODEX_HOME="${temp_home}" python3 "${CODEX_PLUGIN}/scripts/manage_profile.py" install >/dev/null &&
+      CODEX_HOME="${temp_home}" python3 "${CODEX_PLUGIN}/scripts/manage_profile.py" check >/dev/null &&
+      CODEX_HOME="${temp_home}" python3 "${CODEX_PLUGIN}/scripts/manage_profile.py" uninstall >/dev/null; then
+    log "Codex PI profile manager lifecycle ok"
+  else
+    warn "Codex PI profile manager lifecycle failed"
     rc=1
   fi
   rm -rf -- "${temp_home}"
