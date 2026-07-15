@@ -2,9 +2,9 @@
 
 PI, not AI.
 
-> **Claude Code plugin** — not a Codex tool, not a standalone CLI. It needs the `opencode` CLI and an opencode-go plan (about $10/month) to run; no opencode, nothing happens.
->
-> PI was born **Claude-Code-first**. Making it consumable from **Codex** (or as a standalone) is an idea we're exploring — the review engine itself is just orchestration over `opencode`, so it isn't fundamentally tied to Claude Code. If you'd use a Codex version, [open an issue](../../issues) and say so.
+> **Claude Code + Codex plugin.** PI needs the `opencode` CLI and an opencode-go plan (about $10/month)
+> on either host; no opencode, nothing happens. Claude runs the council through its Workflow API. Codex
+> uses native custom subagents — no nested `codex exec`, no Codex-in-Codex subshell matryoshka.
 
 It's a code review tool that does the obvious-in-hindsight thing: instead of paying one expensive model to look at your code, it asks a handful of cheap ones and lets them fight about it, then a chairman reads the fight and hands you a single verdict.
 
@@ -40,9 +40,17 @@ Which is why the column that matters is **confirmed-real**, not raw finds — a 
 
 *Confirmed-real = held up under the maintainers' two-round triage (FIXED/CONFIRMED, not disputed). Lone-wolf = of those, how many no other reviewer caught.*
 
-> ⚠️ **The Qwen3.7-Plus row is our own mistake, kept honest.** We benchmarked the wrong model: `qwen3.7-plus` is noise — one real bug in ten. Production runs **`qwen3.7-max`** instead, a much stronger model whose real numbers await a second run. **Don't use `qwen3.7-plus` for review** — use `qwen3.7-max`.
+> ⚠️ **The Qwen3.7-Plus row is our own mistake, kept honest.** We benchmarked the wrong model: `qwen3.7-plus` is noise — one real bug in ten. Production runs **`qwen3.7-max`** instead — and a rerun against the same code validated it as a real reviewer: it independently re-found the panel's headline save/load bug. (Like every cheap model it also emitted false positives — a couple of its "findings" didn't survive a source check — which is precisely why the chairman and triage exist, not a mark against it.) **Don't use `qwen3.7-plus` for review** — use `qwen3.7-max`.
 
 One repo, one run — not a benchmark claim, just what happened here. Full breakdown, including which finds actually held up under triage, in [EXPERIMENT.md](EXPERIMENT.md).
+
+**qwen3.7-max — validation rerun** *(2026-07, same tree `cb89a77` — a raw solo run, NOT the maintainer-triaged union above, so not comparable to it)*
+
+| Reviewer | Raw findings | Held up so far | False positives | Status |
+|---|--:|--:|--:|---|
+| Qwen3.7-Max | 30 † | ≥1 — re-found the FmParams save/load bug | 2 (caught on a source check) | ~28 open, untriaged |
+
+† 32 emitted, 2 self-retracted mid-response. Deposited to the fx32 maintainers for triage. What it shows: qwen3.7-max is a *real* reviewer (it found the genuine bug) **and** noisy (a couple of confident false positives) — which is exactly the job the chairman does.
 
 ## You need opencode first
 
@@ -51,28 +59,82 @@ This is a front-end. The reviewing happens through the opencode CLI on an openco
 - https://opencode.ai/go?ref=RWGQD6Q9RA — referral link. You get five dollars, I get five dollars. Use it if that sits fine with you.
 - https://opencode.ai/go — the same thing without the referral, if it doesn't.
 
-## Install
+## Install — Claude Code
 
 ```
 /plugin marketplace add photod/pi-reviewer
 /plugin install pi@pi-reviewer
 ```
 
-Restart the session so the command registers, then run `/pi-review high <target>`. It installs its own review engine the first time you use it.
+Restart the session so the command registers, then run `/pi-review med <target>`. It installs its own review engine the first time you use it.
 
-## Running it
+## Install — Codex
+
+```bash
+codex plugin marketplace add photod/pi-reviewer
+codex plugin add pi@pi-reviewer
+```
+
+Start a new Codex thread, invoke `$pi-setup install` once, approve installing the three bundled custom
+agent profiles, then start one more new thread so Codex loads them. That second activation step is needed
+because plugins can bundle skills but do not currently register custom-agent TOMLs themselves.
+
+During local development from this checkout:
+
+```bash
+codex plugin marketplace add ~/gh/pi-reviewer
+codex plugin add pi@pi-reviewer
+```
+
+The installer backs up conflicting profiles, updates atomically, and only removes bytes it owns.
+
+PI's Codex skills use native subagents only. If the current surface cannot spawn them, PI stops and asks
+you to use a fresh interactive Codex app/CLI/IDE thread; it never falls back to spawning `codex exec`.
+
+## Running it — Claude Code
 
 ```
 /pi-review                     review the current diff, default settings
-/pi-review ultra src/engine    the whole council, on a path
-/pi-review med diff opus       cheaper panel, Opus in the chair
+/pi-review high src/engine     the whole council, on a path
+/pi-review low diff opus       cheaper panel, Opus in the chair
 ```
 
 The three tiers, spelled out:
 
-- **med** — a quick pass with three reviewers; cheap and fast, the one for a routine diff. (MiniMax-M3, DeepSeek-V4-Pro, MiMo-V2.5-Pro.)
-- **high** *(default)* — three reviewers with a better spread; the one you'll reach for most days, when you want a real second read without paying for the whole panel. (GLM-5.2, Qwen3.7-Max, Kimi K2.7-Code.)
-- **ultra** — all six reviewers plus a heavier reconciliation pass by the chairman, for a pre-merge audit or a change that scares you.
+- **low** — a quick pass with three reviewers; cheap and fast, the one for a routine diff. (MiniMax-M3, DeepSeek-V4-Pro, MiMo-V2.5-Pro.)
+- **med** *(default)* — three reviewers with a better spread; the one you'll reach for most days. (GLM-5.2, Qwen3.7-Max, Kimi K2.7-Code.)
+- **high** — all six reviewers plus a heavier reconciliation pass by the chairman, for a pre-merge audit or a change that scares you.
+
+## Running it — Codex
+
+The main entry point chooses review versus build from the task:
+
+```text
+$pi med review the current diff
+$pi high audit src/engine
+$pi low fix the parser regression; acceptance: ./run.sh test
+```
+
+Direct entry points are available when you want to be explicit:
+
+```text
+$pi-review med current diff
+$pi-build low add the named regression test and fix src/parser.ts; run npm test
+```
+
+An operator can also say: “Use `$pi med` to review this branch. Spawn the PI leaves in parallel, wait
+for all of them, then return only the external chairman verdict and coverage.” Usually the shorter form is
+enough; the skill itself instructs the main thread to use native PI subagents and never self-author a
+missing leaf.
+
+Codex PI automatically routes review language (`review`, `audit`, `inspect`, `find bugs`) to the council,
+and change language (`implement`, `fix`, `add`, `refactor`) to the scoped builder. It asks only when the
+request genuinely does not say whether files should change.
+
+One deliberate confirmation remains: PI sends the selected code to third-party OpenCode-Go/Kimi model
+endpoints. Codex asks for explicit disclosure consent before the first leaf unless your current request
+already says that you approve sending that named target to those providers. This is not an approval-mode
+replacement; it is the data boundary PI actually crosses.
 
 Why those six and not some other set? Nothing handed me the list — it's the combination I've landed on and trust. Each one is strong on its own, and, more to the point, they're different enough that they don't all trip on the same things. Six great models that think alike would be worth one. These six disagree, usefully. That's why they're the ones.
 
@@ -81,10 +143,17 @@ Why those six and not some other set? Nothing handed me the list — it's the co
 Nothing to set up to get going. For different defaults for good, drop a `~/.claude/pi.json`:
 
 ```json
-{ "tier": "high", "chairman": "glm-5.2", "kimiMode": "opencode" }
+{ "tier": "med", "chairman": "glm-5.2", "kimiMode": "opencode" }
 ```
 
-The chairman defaults to GLM-5.2 — an affordable smarty: cheap to run, frontier-league in ability, and reconciling a stack of reviews is well within it. Point it at `opus` or `sonnet` if you specifically want a closed frontier model in the chair. Command-line arguments still win for a single run.
+Codex reads the same keys from `~/.codex/pi.json` (plus `buildModel`); Claude reads `~/.claude/pi.json`.
+The chairman defaults to GLM-5.2 — cheap to run, frontier-league in ability, and reconciling a stack of
+reviews is well within it. Claude can also seat `opus` or `sonnet`; Codex deliberately keeps its chairman
+external so the result stays PI rather than turning into a host-model review. Per-run arguments win.
+
+Upgrading from 0.1.x: tier names changed by meaning-preserving position — old `med` is now `low`, old
+`high` is now `med`, and old `ultra` is now `high`. Update a saved `"tier": "high"` to `"tier": "med"`
+if you want the previous default three-model panel rather than the new full-panel `high`.
 
 PI masks common secrets before whole-repo reviews — see [masking details](#privacy--masking) to preview or configure it.
 
@@ -106,7 +175,7 @@ Where they *would* earn a place is the **chairman**: OpenRouter and opencode-zen
 
 ## Built and reviewed by
 
-Opus 4.8 did most of the building. GPT-5.6, GPT-5.5, and GLM-5.2 reviewed the code. And PI reviewed itself — a full ultra-tier pass of the council over its own source.
+Opus 4.8 did most of the building. GPT-5.6, GPT-5.5, and GLM-5.2 reviewed the code. And PI reviewed itself — a full high-tier pass of the council over its own source.
 
 Not AI. PI.
 

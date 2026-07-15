@@ -1,7 +1,7 @@
 ---
 name: pi-build
-description: Poor Intelligence's BUILDER (bonus companion to /pi-review). Delegate a scoped, TDD code change to GLM-5.2 via opencode-go — a different model augments the tests, a cross-model pass reviews the diff. Same $10 opencode-go plan as the council. Run /pi-build [med|high|ultra] <task / files> [model].
-argument-hint: "[med|high(default)|ultra] <task description and/or target files> [implement model: glm(default)|qwen|minimax|deepseek|mimo]"
+description: Poor Intelligence's BUILDER (bonus companion to /pi-review). Delegate a scoped, TDD code change to GLM-5.2 via opencode-go — a different model augments the tests, a cross-model pass reviews the diff. Same $10 opencode-go plan as the council. Run /pi-build [low|med|high] <task / files> [model].
+argument-hint: "[low|med(default)|high] <task description and/or target files> [implement model: glm(default)|qwen|minimax|deepseek|mimo]"
 ---
 
 # /pi-build — Poor Intelligence code builder (GLM-5.2 worker)
@@ -21,15 +21,15 @@ companion to `/pi-review`: same cheap opencode-go plan, same Fable-5 discipline,
 ## Resolve config — standing host config FIRST, then per-call overrides
 
 1. **Standing config:** if `~/.claude/pi.json` exists, read it for defaults (keys shared with the council:
-   `tier`; build-specific: `buildModel`). **No file → built-in defaults:** `tier=high`, `buildModel=glm`.
-2. **Per-call overrides** from `$ARGUMENTS` (this run only): a tier keyword (`med`/`high`/`ultra`), the
+   `tier`; build-specific: `buildModel`). **No file → built-in defaults:** `tier=med`, `buildModel=glm`.
+2. **Per-call overrides** from `$ARGUMENTS` (this run only): a tier keyword (`low`/`med`/`high`), the
    **task** (a description and/or the target files — everything that isn't a recognized keyword), and an
    optional implement-model family — `glm` (default) or **any** opencode-go family (`qwen` · `minimax` ·
    `deepseek` · `mimo`). The worker resolves its test-augmenter and diff-reviewer to a family DIFFERENT
    from the implementer, so any choice keeps cross-family review intact — no collision.
 
-Tiers scale GLM's reasoning-effort (`--variant`), not the model: `med`→medium · `high`→high · `ultra`→max
-(+ a TDD-plan-first pass). There is no cost-gate (unlike codex-worker's Sol).
+Tiers scale the backend reasoning hint, not the model: `low`→low · `med`→medium · `high`→high
+(+ a TDD-plan-first pass at high). There is no cost gate.
 
 ## Execute — self-contained, single agent
 

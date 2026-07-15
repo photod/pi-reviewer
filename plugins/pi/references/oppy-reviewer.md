@@ -61,7 +61,7 @@ source files" — then you are reconciling a panel, NOT reviewing code. Override
 code" rules below: do **NOT** read, paste, or `-f` any repo file, and do NOT emit a fresh review. The
 reviews are already in the instruction. Just run:
 ```bash
-scripts/opencode-watch.sh 150 600 -- opencode run "THE_RECONCILE_INSTRUCTION_WITH_THE_PASTED_REVIEWS" -m MODEL_ALIAS --agent plan --variant EFFORT --dir WORKDIR --format json < /dev/null
+opencode run "THE_RECONCILE_INSTRUCTION_WITH_THE_PASTED_REVIEWS" -m MODEL_ALIAS --agent plan --variant EFFORT --dir WORKDIR --format json < /dev/null
 ```
 (`--dir` is only the CWD — there is nothing to read there.) Relay the model's reconciled verdict
 verbatim. The verdict taxonomy (ok / truncated / reasoning-only / …) and the RELAY rule apply exactly
@@ -71,13 +71,9 @@ as for a review. Everything below is for REVIEW mode.
 
 **Use ONLY this exact pattern — `-m`, `--agent plan`, and the trailing `< /dev/null` are ALL MANDATORY:**
 ```bash
-scripts/opencode-watch.sh 150 600 -- opencode run "INSTRUCTIONS" -m MODEL_ALIAS --agent plan --variant EFFORT --dir WORKDIR --format json < /dev/null
+opencode run "INSTRUCTIONS" -m MODEL_ALIAS --agent plan --variant EFFORT --dir WORKDIR --format json < /dev/null
 ```
 (`MODEL_ALIAS` must be one of the 6 in the allowlist above — default `opencode-go/glm-5.2`.)
-
-The watchdog requires stdout growth at least every 150 seconds, caps each attempt at 600 seconds,
-kills the full process group on a stall/cap breach, and retries once from scratch. Use it for every
-leaf `opencode run`; do not invoke a leaf directly.
 
 - `--agent plan`: **MANDATORY.** Runs opencode's read-only `plan` agent instead of the default
   `build` agent. This enforces read-only (no file writes — replaces the weaker "please don't edit"
@@ -120,7 +116,7 @@ of reviewing. Prevent it:
    even then paste the key sections.)
 2. **Tell the model in the prompt, verbatim:** "Review ONLY the code below. Do NOT explore the
    repository or use tools. Respond directly with your review as text."
-3. **Always use the `150 600` watchdog invocation above.** Then **judge the outcome by the
+3. **Hard timeout 300000ms (5 min)** on the Bash call — never higher. Then **judge the outcome by the
    verdict taxonomy below — NOT by a crude "is there a `type:"text"` part" check.** That crude check
    throws away real work: a model that ran out of output budget dumping chain-of-thought, or streamed
    its analysis as reasoning, still produced findings worth salvaging.
@@ -147,7 +143,7 @@ self-contained prompt every time:
 
 ## Judging the outcome — verdict, retry, salvage (NOT a naive `type:text` check)
 
-The watchdog enforces the idle and hard-cap limits. After the call, classify the JSON stream. (If you
+Bash timeout 300000ms (5 min) — never higher. After the call, classify the JSON stream. (If you
 saved the stream to a file, `python3 -m transcript_miner opencode <file> --json` returns the verdict
 + salvageable content directly — dogfood it; otherwise apply the same taxonomy by eye.)
 

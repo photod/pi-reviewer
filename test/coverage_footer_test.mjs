@@ -12,13 +12,13 @@ let ok = true
 const check = (name, cond) => { if (!cond) { ok = false; console.log(`FAIL ${name}`) } else console.log(`PASS ${name}`) }
 
 // (a) clean full panel
-const a = coverageLine({ mode: 'high', ok: 3, total: 3, unavailable: [], files: 0, dropped: 0 })
+const a = coverageLine({ mode: 'med', ok: 3, total: 3, unavailable: [], files: 0, dropped: 0 })
 check('clean: non-empty', a.length > 0)
 check('clean: 3/3 leaves OK', a.includes('3/3 leaves OK'))
 check('clean: no UNAVAILABLE noise', !a.includes('UNAVAILABLE'))
 
 // (b) one UNAVAILABLE
-const b = coverageLine({ mode: 'high', ok: 2, total: 3, unavailable: ['deepseek'], files: 0, dropped: 0 })
+const b = coverageLine({ mode: 'med', ok: 2, total: 3, unavailable: ['deepseek'], files: 0, dropped: 0 })
 check('degraded: names the leaf', b.includes('deepseek') && b.includes('UNAVAILABLE'))
 check('degraded: 2/3', b.includes('2/3 leaves OK'))
 

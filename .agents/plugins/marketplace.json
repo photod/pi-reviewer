@@ -1,0 +1,12 @@
+{
+  "name": "pi-reviewer",
+  "interface": { "displayName": "Poor Intelligence" },
+  "plugins": [
+    {
+      "name": "pi",
+      "source": { "source": "local", "path": "./plugins/pi" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Developer Tools"
+    }
+  ]
+}

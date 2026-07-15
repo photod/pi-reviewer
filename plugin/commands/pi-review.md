@@ -1,7 +1,7 @@
 ---
 name: pi-review
-description: Poor Intelligence — that's PI, not AI ;-). A code-review council of cheap opencode-go models instead of one pricey genius: they fan out in parallel, a glm-5.2 chairman reconciles ONE verdict. Run /pi-review [med|high|ultra] [target] [chairman] [kimiMode].
-argument-hint: "[med|high(default)|ultra] [target] [chairman: glm-5.2(default)|opus|sonnet] [kimiMode: opencode(default)|cli|off]"
+description: Poor Intelligence — that's PI, not AI ;-). A code-review council of cheap opencode-go models instead of one pricey genius: they fan out in parallel, a glm-5.2 chairman reconciles ONE verdict. Run /pi-review [low|med|high] [target] [chairman] [kimiMode].
+argument-hint: "[low|med(default)|high] [target] [chairman: glm-5.2(default)|opus|sonnet] [kimiMode: opencode(default)|cli|off]"
 ---
 
 # /pi-review — Poor Intelligence code-review council
@@ -15,13 +15,13 @@ Reconfiguration lives in a config the command reads — NOT in per-call args (th
 1. **Standing config:** if `~/.claude/pi.json` exists, read it for defaults — keys: `tier`, `chairman`,
    `kimiMode`, `edition`. This is where a host is set up ONCE (e.g. `{"kimiMode":"cli"}` to use the native
    Kimi CLI instead of opencode-go kimi). **No file → built-in defaults** (the fridge still works):
-   `tier=high`, `chairman=glm-5.2`, `kimiMode=opencode`.
+   `tier=med`, `chairman=glm-5.2`, `kimiMode=opencode`.
 2. **Per-call overrides:** parse `$ARGUMENTS` and let them override the config for THIS run only — a tier
-   keyword (`med`/`high`/`ultra`), a target (path/glob/`diff`/`branch`; default `git diff HEAD`), a chairman
+   keyword (`low`/`med`/`high`), a target (path/glob/`diff`/`branch`; default `git diff HEAD`), a chairman
    (`opus`/`sonnet`/an `opencode-go/<alias>`), a `kimiMode` (`opencode`/`cli`/`off`).
 
-Tiers: `med` = 3 cheap models · `high` = glm + qwen + kimi (default) · `ultra` = all 6 + high-effort synth.
-Kimi is a leaf at high/ultra only; `kimiMode` picks its backend (opencode-go by default, native CLI, or off).
+Tiers: `low` = 3 cheap models · `med` = glm + qwen + kimi (default) · `high` = all 6 + high-effort synth.
+Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by default, native CLI, or off).
 
 ## Execute — self-bootstrapping, single engine
 
@@ -82,4 +82,4 @@ Kimi is a leaf at high/ultra only; `kimiMode` picks its backend (opencode-go by 
    is fine, silent is not.
 5. **If the engine file is genuinely absent** (not a plugin install, copy failed): run the tier inline as a
    fallback — parallel `oppy-reviewer` agents (one `-m opencode-go/<alias>` each; + a `kimi-reviewer` at
-   high/ultra when `kimiMode:cli`), then an Opus synthesis. Tell the operator once that it ran in fallback mode.
+   med/high when `kimiMode:cli`), then an Opus synthesis. Tell the operator once that it ran in fallback mode.
