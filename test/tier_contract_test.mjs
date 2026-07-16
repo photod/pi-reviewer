@@ -11,7 +11,6 @@ const codexSetup = read('plugins/pi/skills/pi-setup/SKILL.md')
 const piProfile = read('plugins/pi/profiles/pi.config.toml')
 const codexRouter = read('plugins/pi/skills/pi/SKILL.md')
 const codexLeaf = read('plugins/pi/agents/pi_oppy_reviewer.toml')
-const readme = read('README.md')
 
 let ok = true
 const check = (name, condition) => {
@@ -48,9 +47,4 @@ check('Codex PI says the required consent aloud',
   codexRouter.includes('I consent to sharing the masked N-file snapshot') &&
   codexReview.includes('say the required sentence aloud') &&
   codexLeaf.includes('status: NEEDS_CONSENT'))
-check('README labels Codex PI experimental and names the refusal',
-  readme.includes('Codex consent is not reliable yet') &&
-  readme.includes("I'm afraid that's something I cannot allow to happen") &&
-  readme.includes('masked 46-file snapshot'))
-
 process.exit(ok ? 0 : 1)

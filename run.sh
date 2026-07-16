@@ -47,9 +47,7 @@ check() {
 
   if python3 -c 'import json,sys; [json.load(open(p)) for p in sys.argv[1:]]' \
       "${REPO_DIR}/plugin/.claude-plugin/plugin.json" \
-      "${REPO_DIR}/.claude-plugin/marketplace.json" \
-      "${CODEX_PLUGIN}/.codex-plugin/plugin.json" \
-      "${REPO_DIR}/.agents/plugins/marketplace.json"; then
+      "${REPO_DIR}/.claude-plugin/marketplace.json"; then
     log "plugin manifests ok"
   else
     warn "invalid plugin manifest"
