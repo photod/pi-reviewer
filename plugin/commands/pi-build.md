@@ -16,7 +16,8 @@ companion to `/pi-review`: same cheap opencode-go plan, same Fable-5 discipline,
 >
 > **Privacy:** `/pi-build` sends the target code to the model **as-is** — it does NOT stage a redacted
 > copy the way whole-repo `/pi-review` does. Same rule as a diff review: don't point it at code you can't
-> share. To check what a secret-masker would flag first, run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/pi-mask.py --preview <path>`.
+> share. To check what a secret-masker would flag first, ask in chat ("what would PI mask in
+> `<path>`?") or run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/pi-mask.py --preview <path>` yourself.
 
 ## Resolve config — standing host config FIRST, then per-call overrides
 
@@ -29,7 +30,7 @@ companion to `/pi-review`: same cheap opencode-go plan, same Fable-5 discipline,
    from the implementer, so any choice keeps cross-family review intact — no collision.
 
 Tiers scale the backend reasoning hint, not the model: `low`→low · `med`→medium · `high`→high
-(+ a TDD-plan-first pass at high). There is no cost gate.
+(+ a TDD-plan-first pass at high). `max` / `ultra` are accepted as aliases for `high`. There is no cost gate.
 
 ## Execute — self-contained, single agent
 

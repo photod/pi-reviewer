@@ -44,7 +44,8 @@ function resolveModel(token) {
 // never touches this table. Kimi joins at med+high (see kimiMode). Synthesis effort tracks STAKES,
 // not review count (that's why `med` gets more effort than `low` despite fewer reviews):
 // low=routine, med=architecture-adjacent, high=pre-release. `effort` (low/medium/high) is the
-// provider vocabulary; operator tiers stay exactly low/med/high.
+// provider vocabulary; operator tiers stay exactly low/med/high (`max`/`ultra` are accepted as
+// forgiving input aliases for `high` — see below — but the canonical vocabulary never changes).
 const TIERS = {
   low:  { families: ['minimax', 'deepseek', 'mimo'], kimi: false, effort: 'low' },
   med:  { families: ['glm', 'qwen'], kimi: true, effort: 'medium' },
@@ -71,8 +72,11 @@ if (args && typeof args === 'object') A = args
 else if (typeof args === 'string' && args.trim()) { try { A = JSON.parse(args) } catch (e) { A = {} } }
 if (!A || typeof A !== 'object' || Array.isArray(A)) A = {}  // JSON.parse('null'/'0'/'"x"'/'[…]') yields a non-object — normalize so A.tier never throws
 
-const tierName = String(A.tier || 'med').toLowerCase()
-if (!TIERS[tierName]) throw new Error(`unknown tier '${tierName}' — use low, med, or high`)
+// Forgiving tier aliases: `max`/`ultra` both mean `high` (people forget which word is the top).
+// Canonical operator vocabulary stays exactly low/med/high — aliases resolve here and nowhere else.
+const rawTier = String(A.tier || 'med').toLowerCase()
+const tierName = rawTier === 'max' || rawTier === 'ultra' ? 'high' : rawTier
+if (!TIERS[tierName]) throw new Error(`unknown tier '${rawTier}' — use low, med, or high`)
 const tier = TIERS[tierName]
 const tierModels = tier.families.map(f => MODELS[f])  // family names → full opencode-go aliases
 const target = A.target || 'the current diff (git diff HEAD) in the working directory'

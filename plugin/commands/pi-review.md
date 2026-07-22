@@ -20,7 +20,18 @@ Reconfiguration lives in a config the command reads — NOT in per-call args (th
    keyword (`low`/`med`/`high`), a target (path/glob/`diff`/`branch`; default `git diff HEAD`), a chairman
    (`opus`/`sonnet`/an `opencode-go/<alias>`), a `kimiMode` (`opencode`/`cli`/`off`).
 
-Tiers: `low` = 3 cheap models · `med` = glm + qwen + kimi (default) · `high` = all 6 + high-effort synth.
+Tiers: `low` = 3 cheap models · `med` = glm + qwen + kimi (default) · `high` = all 6 + high-effort synth
+(`max` / `ultra` are accepted as aliases for `high` — people forget which word is the top).
+
+## Housekeeping asks (preview masking) — handle in chat, no council
+
+If the request is about the MASKER rather than a review ("preview what you'd mask in X", "what would
+you redact"), handle it right here — do NOT run a review: run
+`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/pi-mask.py" --preview <paths>` on the paths the operator
+named and relay the output (what would be redacted, line by line). This is local-only — nothing is
+staged or sent anywhere. (If an operator explicitly asks to change WHICH domains get masked, a
+repo-root `pi-mask.config.json` — created from the bundled `scripts/pi-mask.config.example.json` —
+toggles `groups.<name>` / `national_ids.<CC>` booleans; nobody should have to touch it otherwise.)
 Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by default, native CLI, or off).
 
 ## Execute — self-bootstrapping, single engine
@@ -38,34 +49,57 @@ Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by de
 1. **Ensure the engine is installed.** If `~/.claude/workflows/pi-council.js` does NOT exist but
    `${CLAUDE_PLUGIN_ROOT}/workflows/pi-council.js` does (fresh plugin install), copy the latter to the
    former (`mkdir -p ~/.claude/workflows` first). This self-installs the workflow — there is NO manual step.
-2. **Whole-repo access — pick a MODE, then build the input.** ONLY for a whole-repo / bare-directory
-   target; a diff / branch / named-file target skips this entirely and is UNCHANGED. An explicit
-   `mode=yolo|curated|list|pack` in `$ARGUMENTS` overrides; otherwise **auto-triage**:
-   - Task names specific files or an area → **`curated`**: YOU pick the relevant files as `fileList`, and
-     tell reviewers *"if you hit a reference to a file NOT in this list that you need, NAME it in your
-     findings"* (miss-recovery — recovers exactly the file the orchestrator failed to include).
-   - Else run `fileList=$("${CLAUDE_PLUGIN_ROOT}/scripts/pi-filelist.sh" <workdir> [subpath])` and read its
-     `# N files` count: **≤50 → `list`** (pass that fileList) · **>50 → `pack`**.
-   - **`pack` = offer-first repomix:** if `command -v repomix` OR `command -v npx` succeeds, **ASK the
-     operator before running** (`repomix` or `npx repomix` — respects `.gitignore`, runs `secretlint`),
-     then review the pack. On decline, OR if neither is available → **degrade to `list`** (capped) and say
-     so in one line. NEVER run repomix silently.
-   - **`yolo`** (explicit-only, never auto): pass NO `fileList` — the leaf reviews the whole `--dir`
-     unbounded. Riskiest (cost/leakage); only when the operator asks for it.
+1b. **First run ever — advertise the extras ONCE.** If `~/.claude/.pi-welcomed` is absent, show the
+   operator this one screen (then create that marker file and never repeat it):
+   > **PI, first run — what's in the box:**
+   > - Tiers `low|med|high` — and `max`/`ultra` if you forget which word is the top; optional
+   >   `[target] [chairman] [kimiMode]` per run, standing defaults in `~/.claude/pi.json`.
+   > - **Masking is ON at every scope** — diffs, named files, and whole repos all go through the
+   >   secret masker before any model sees your code. Only an explicit `mode=yolo` sends raw.
+   > - Ask in chat: *"what would PI mask in `<path>`?"* — instant preview, nothing is sent.
+   > - `/pi-build` — the companion builder: small, test-driven changes from the same cheap panel.
+2. **Masking is the DEFAULT at every scope.** The only unmasked mode is an explicit `mode=yolo` —
+   the operator's opt-in trade. Build the (masked) input by target shape:
+   - **Diff / branch target (the default).** Materialize the diff, mask the TEXT, and review the
+     masked artifact — the leaves must never re-fetch the raw diff:
+     ```
+     snap="<workdir>/.pi-review/snap-$(date +%Y%m%d-%H%M%S)" && mkdir -p "$snap" &&
+     git diff HEAD | python3 "${CLAUDE_PLUGIN_ROOT}/scripts/pi-mask.py" - > "$snap/diff.patch"
+     ```
+     (For a branch target, diff that branch range instead.) `pi-mask.py` fails CLOSED — a non-zero
+     exit means masking failed, so ABORT the run rather than send the raw diff. Then run the workflow
+     with `workdir=$snap`, `mode=diff`, and `target` set to: *"the masked diff at diff.patch — review
+     ONLY that file; do NOT run git diff or read other repo files — this masked copy IS the whole
+     input."* (Leaves lose surrounding-repo context on a masked diff — that is the price of masking;
+     say so in one honest line if the operator asks.)
+   - **Named-file target.** Treat it as `curated`: build fileList from exactly those files and stage
+     them through `pi-stage.sh` as below.
+   - **Whole-repo / bare-directory target — pick a MODE, then build the input.** An explicit
+     `mode=yolo|curated|list|pack` in `$ARGUMENTS` overrides; otherwise **auto-triage**:
+     - Task names specific files or an area → **`curated`**: YOU pick the relevant files as `fileList`, and
+       tell reviewers *"if you hit a reference to a file NOT in this list that you need, NAME it in your
+       findings"* (miss-recovery — recovers exactly the file the orchestrator failed to include).
+     - Else run `fileList=$("${CLAUDE_PLUGIN_ROOT}/scripts/pi-filelist.sh" <workdir> [subpath])` and read its
+       `# N files` count: **≤50 → `list`** (pass that fileList) · **>50 → `pack`**.
+     - **`pack` = offer-first repomix:** if `command -v repomix` OR `command -v npx` succeeds, **ASK the
+       operator before running** (`repomix` or `npx repomix` — respects `.gitignore`, runs `secretlint`),
+       then review the pack. On decline, OR if neither is available → **degrade to `list`** (capped) and say
+       so in one line. NEVER run repomix silently.
+     - **`yolo`** (explicit-only, never auto): pass NO `fileList` — the leaf reviews the whole `--dir`
+       unbounded. Riskiest (cost/leakage); the ONLY mode that sends raw source.
    `pi-filelist.sh` prints one path per line + `#`-comment footers (pi-council.js ignores `#` lines);
    capture the dropped-count from its `# dropped:` footer if present. Track the chosen `mode` for step 3.
-   - **Mask before sending (`list` / `curated`).** Stage a REDACTED copy so reviewers never see raw
-     secrets: `staged=$("${CLAUDE_PLUGIN_ROOT}/scripts/pi-stage.sh" <workdir> [subpath])`, then pass
-     `workdir=$staged` to the workflow (the staged tree holds masked copies; the same relative `fileList`
-     resolves inside it). `pi-stage.sh` fails CLOSED — a non-zero exit means masking failed, so ABORT the
-     run rather than send raw code. This is **best-effort** masking of common high-value keys, NOT a
-     guarantee. `pack` relies on repomix's own `secretlint`; **`yolo` sends raw** (no masking — that's the
-     trade the operator opted into).
+   - **Stage before sending (`list` / `curated` / named files).** Stage a REDACTED copy so reviewers
+     never see raw secrets: `staged=$("${CLAUDE_PLUGIN_ROOT}/scripts/pi-stage.sh" <workdir> [subpath])`,
+     then pass `workdir=$staged` to the workflow (the staged tree holds masked copies; the same relative
+     `fileList` resolves inside it). `pi-stage.sh` fails CLOSED — a non-zero exit means masking failed, so
+     ABORT the run rather than send raw code. This is **best-effort** masking of common high-value keys,
+     NOT a guarantee. `pack` relies on repomix's own `secretlint`.
      **Once per repo, after masking succeeds:** if `"<workdir>/.pi-review/.pi-hinted"` is absent, tell the
      operator: **PI staged a redacted copy in `.pi-review/snap-.../` before sending code; nothing raw left
-     the repo for this whole-repo review. Preview any file with `pi-mask.py --preview <path>`; toggle masked
-     secret domains/countries in `pi-mask.config.json`.** Then create that marker file. If it exists, stay
-     silent.
+     the repo for this review. Masking stays on at every scope (explicit `mode=yolo` sends raw); ask in
+     chat "what would PI mask in `<path>`?" to preview any file.** Then create that marker file. If it
+     exists, stay silent.
 3. **Run it** by scriptPath (never by name — name-invocation can hit a stale registration):
    ```
    Workflow({

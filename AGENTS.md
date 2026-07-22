@@ -19,10 +19,12 @@ is preserved on the `codex` branch. Do not build new Codex-facing features on `p
 
 - Preserve Claude-specific mechanics under `plugin/`: Workflow API calls, `agentType`, Claude
   frontmatter, `${CLAUDE_PLUGIN_ROOT}`, and `< /dev/null` are intentional.
-- Operator tiers are exactly `low|med|high`. Provider `--variant` values remain `low|medium|high`;
+- Operator tiers are exactly `low|med|high` (`max`/`ultra` are accepted as input aliases for `high`,
+  resolved at parsing only). Provider `--variant` values remain `low|medium|high`;
   do not conflate the two vocabularies.
-- Whole-repo `list` and `curated` reviews must use the fail-closed masking/staging scripts. Never
-  weaken privacy behavior or silently fall back to raw source.
+- Masking is the default at every review scope: whole-repo and named-file reviews use the fail-closed
+  staging scripts, diff/branch reviews pipe the diff text through the masker's stdin mode. Only an
+  explicit `yolo` sends raw source. Never weaken privacy behavior or silently fall back to raw source.
 - Review leaves are relays. Backend unavailable means `status: UNAVAILABLE`, never a host-authored
   substitute wearing another model's label.
 - Builder model calls are sequential because they share a working tree. Never fan out write legs.

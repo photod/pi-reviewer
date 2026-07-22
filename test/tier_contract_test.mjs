@@ -24,7 +24,8 @@ check('workflow defaults to med', workflow.includes("A.tier || 'med'"))
 check('workflow low panel preserved', workflow.includes("low:  { families: ['minimax', 'deepseek', 'mimo']"))
 check('workflow med panel preserved', workflow.includes("med:  { families: ['glm', 'qwen'], kimi: true, effort: 'medium'"))
 check('workflow high panel preserved', workflow.includes("high: { families: ['glm', 'qwen', 'minimax', 'deepseek', 'mimo']"))
-check('workflow rejects aliases', !workflow.includes("rawTier === 'max'") && workflow.includes('use low, med, or high'))
+check('workflow maps max/ultra aliases to high',
+  workflow.includes("rawTier === 'max' || rawTier === 'ultra'") && workflow.includes('use low, med, or high'))
 check('builder provider mapping is coherent',
   worker.includes('| **low** | `low` |') &&
   worker.includes('| **med** | `medium` |') &&

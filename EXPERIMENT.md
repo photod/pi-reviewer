@@ -71,11 +71,12 @@ finding count and against the cheap-panel's per-model breakdown — they all agr
 many the maintainers' two-round triage marked FIXED or CONFIRMED (not DISPUTED). **Lone-wolf** = of
 those, how many no other reviewer (of the 11) also caught.
 
-> ⚠️ **The Qwen3.7-Plus row is our error, kept in the record on purpose.** We ran the wrong Qwen —
+> ⚠️ **The Qwen3.7-Plus row is my error, kept in the record on purpose.** I ran the wrong Qwen —
 > `qwen3.7-plus`, which scored 1 real of 10 (mostly disputed). Its "8-bug allocator family" was almost
-> all ruled intentional; it is NOT a win. Production uses **`qwen3.7-max`**, a materially stronger model
-> whose real numbers we'll only have after a second run. **Do not use `qwen3.7-plus` for review.** The
-> row stays here so the mistake — and the reminder — is visible.
+> all ruled intentional; it is NOT a win. Production uses **`qwen3.7-max`**, a materially stronger
+> model — validated in the rerun below, where it independently re-found the panel's headline
+> save/load bug. **Do not use `qwen3.7-plus` for review.** The row stays here so the mistake — and
+> the reminder — is visible.
 
 † Codex gpt-5.5's own arm file reports 7 findings; the union matrix credits it 8 because one of those
 findings names two distinct technical claims in a single sentence and is counted for both — documented
@@ -88,6 +89,22 @@ reviewers scored in the union matrix, so "confirmed-real"/"lone-wolf" against th
 § An Opus-chairman reconciliation is referenced in the fx32-libretto docs' `INDEX.md`
 (`arm-B-panel/_CHAIRMAN-opus.md`), but that file does not exist in the delivered `raw-reviews/` tree —
 not recoverable, not guessed.
+
+## qwen3.7-max — the validation rerun
+
+_2026-07, same tree (`cb89a77`). A raw solo run, NOT the maintainer-triaged union above, so not
+comparable to it._
+
+| Reviewer | Raw findings | Held up so far | False positives | Status |
+|---|--:|--:|--:|---|
+| Qwen3.7-Max | 30 † | ≥1 — independently re-found the FmParams save/load bug | 2 (caught on a source check) | ~28 open, untriaged |
+
+† 32 emitted, 2 self-retracted mid-response. Deposited to the fx32 maintainers for triage. What it
+shows: qwen3.7-max is a *real* reviewer (it re-found the genuine bug the triaged union had already
+confirmed) **and** noisy (a couple of confident false positives didn't survive a source check) —
+which is exactly the job the chairman does. Read together with the plus row above: the mistake was
+mine (wrong variant), the model family was never the problem — but variant choice matters, and
+`qwen3.7-max` is the one to run.
 
 Read the table by row, not just by total. **Kimi and GLM aren't just prolific, they're wide** — 6 and 7
 of their finds respectively, nobody else touched. **Codex's family is narrow and tight** — sol, terra,
