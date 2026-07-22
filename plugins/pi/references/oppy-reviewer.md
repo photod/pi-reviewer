@@ -61,7 +61,7 @@ source files" — then you are reconciling a panel, NOT reviewing code. Override
 code" rules below: do **NOT** read, paste, or `-f` any repo file, and do NOT emit a fresh review. The
 reviews are already in the instruction. Just run:
 ```bash
-scripts/opencode-watch.sh 150 600 -- opencode run "THE_RECONCILE_INSTRUCTION_WITH_THE_PASTED_REVIEWS" -m MODEL_ALIAS --agent plan --variant EFFORT --dir WORKDIR --format json < /dev/null
+"${CLAUDE_PLUGIN_ROOT}/scripts/opencode-watch.sh" 150 600 -- opencode run "THE_RECONCILE_INSTRUCTION_WITH_THE_PASTED_REVIEWS" -m MODEL_ALIAS --agent plan --variant EFFORT --dir WORKDIR --format json < /dev/null
 ```
 (`--dir` is only the CWD — there is nothing to read there.) Relay the model's reconciled verdict
 verbatim. The verdict taxonomy (ok / truncated / reasoning-only / …) and the RELAY rule apply exactly
@@ -71,7 +71,7 @@ as for a review. Everything below is for REVIEW mode.
 
 **Use ONLY this exact pattern — `-m`, `--agent plan`, and the trailing `< /dev/null` are ALL MANDATORY:**
 ```bash
-scripts/opencode-watch.sh 150 600 -- opencode run "INSTRUCTIONS" -m MODEL_ALIAS --agent plan --variant EFFORT --dir WORKDIR --format json < /dev/null
+"${CLAUDE_PLUGIN_ROOT}/scripts/opencode-watch.sh" 150 600 -- opencode run "INSTRUCTIONS" -m MODEL_ALIAS --agent plan --variant EFFORT --dir WORKDIR --format json < /dev/null
 ```
 (`MODEL_ALIAS` must be one of the 6 in the allowlist above — default `opencode-go/glm-5.2`.)
 
@@ -96,7 +96,7 @@ leaf `opencode run`; do not invoke a leaf directly.
 
 **Why `< /dev/null` is mandatory:** verified empirically (2026-07-11) that `opencode run` returns
 cleanly with a redirected stdin. Treat it as the same class of non-TTY-stdin hang risk documented
-for `codex exec` (see codex-worker.md) — always include it on every `opencode run` call, no
+for `codex exec` — always include it on every `opencode run` call, no
 exceptions. (Not verified for other `opencode` subcommands like `opencode models` — those are
 metadata queries, not review calls, and shouldn't come up in normal use of this agent; if one ever
 does, add the redirect defensively rather than assuming it's safe without it.)

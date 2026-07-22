@@ -77,6 +77,12 @@ check() {
       warn "bundled script drift: ${file}"
       rc=1
     fi
+    if cmp -s -- "${REPO_DIR}/scripts/${file}" "${REPO_DIR}/plugin/scripts/${file}"; then
+      log "Claude plugin script in sync: ${file}"
+    else
+      warn "Claude plugin script drift: ${file}"
+      rc=1
+    fi
   done
   for file in pi-council.js glm-worker.md oppy-reviewer.md kimi-reviewer.md; do
     case "${file}" in
@@ -117,6 +123,7 @@ check() {
   node "${REPO_DIR}/test/tier_contract_test.mjs" || rc=1
   PYTHONDONTWRITEBYTECODE=1 python3 "${REPO_DIR}/test/pi_mask_test.py" || rc=1
   bash "${REPO_DIR}/test/pi_filelist_test.sh" || rc=1
+  bash "${REPO_DIR}/test/opencode_watch_test.sh" || rc=1
   PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "${REPO_DIR}/test" -p 'test_*.py' || rc=1
 
   return "${rc}"

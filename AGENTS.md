@@ -32,5 +32,10 @@ is preserved on the `codex` branch. Do not build new Codex-facing features on `p
 Run `./run.sh check`. It validates Claude frontmatter/manifests, the dormant Codex skills/agent TOMLs
 and their activation-manager scripts, synchronized bundled scripts, and all test suites.
 
+Scripts are mirrored three ways and must stay identical (the check fails on drift): `scripts/` is the
+source of truth, `plugin/scripts/` is the Claude plugin bundle (commands/agents reference it as
+`${CLAUDE_PLUGIN_ROOT}/scripts/...`), and `plugins/pi/scripts/` is the dormant Codex bundle. Likewise
+`plugin/agents/*.md` and `plugin/workflows/pi-council.js` are mirrored into `plugins/pi/references/`.
+
 Use strict Bash (`set -euo pipefail`), quote variables, and keep committed shell scripts shellcheck-clean.
 Every TOML must parse with Python 3.11+ `tomllib`.
