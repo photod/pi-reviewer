@@ -13,6 +13,9 @@ review). You (Sonnet) orchestrate the CLI call and report what changed; Codex do
 Reach for this on **mechanical, well-scoped** changes — scrubs, config-var extraction, file generation,
 a contained refactor — not large features.
 
+> **Privacy:** Codex reads and writes the target code and sends it to OpenAI. There is **no masking**
+> here — point it only at code you can share with OpenAI.
+
 ## CRITICAL: write invocation (verified against codex-cli v0.145.0)
 
 Use EXACTLY this pattern — write-enabled, non-interactive, auto-applied:
@@ -29,7 +32,8 @@ codex exec --full-auto --skip-git-repo-check -C WORKDIR "INSTRUCTIONS"
 - Do NOT append `< /dev/null` (codex exec is non-interactive). NEVER use pipes / heredocs / `$(...)` /
   backticks with the codex call.
 
-If Codex makes NO changes, retry once with the explicit equivalent:
+If Codex made NO changes **but the task clearly required some**, retry once with the explicit equivalent
+(a genuinely no-op task is a fine outcome — report it, don't force a change):
 
 ```bash
 codex exec --sandbox workspace-write -c approval_policy=never --skip-git-repo-check -C WORKDIR "INSTRUCTIONS"
@@ -39,17 +43,22 @@ codex exec --sandbox workspace-write -c approval_policy=never --skip-git-repo-ch
 
 1. Identify the concrete change set from the prompt you received.
 2. Call codex with the write pattern. Bash timeout 600000ms.
-3. After it returns, capture WHAT CHANGED: `git -C WORKDIR diff --stat` (and `git -C WORKDIR diff` for
-   key files). Run any quick check that fits: `bash -n`, `python3 -m py_compile`, `node --check`,
-   `shellcheck`.
+3. After it returns, capture WHAT CHANGED. Prefer `git -C WORKDIR status --porcelain` — it lists
+   **modified AND newly-created (untracked)** files, which `git diff --stat` alone misses (a Codex-created
+   out-of-scope file would otherwise slip through). Add `git -C WORKDIR diff` for the key modified files.
+   **If WORKDIR is not a git repo** (the case `--skip-git-repo-check` allows), git fails — say so and flag
+   that scope could not be fully verified (fall back to a `find WORKDIR -newer <pre-run marker>` listing).
+   Run any quick check that fits: `bash -n`, `python3 -m py_compile`, `node --check`, `shellcheck`.
 4. Do **NOT** commit — leave that to the caller.
 5. Return: files changed, the key diffs, syntax/lint status, and anything Codex skipped or did beyond
    scope. Be honest about over/under-reach.
 
 ## Guardrails
 
-- **Stay within scope.** `git diff --stat` after the run: if Codex touched files outside the named set,
-  report it **prominently** so the caller can revert.
+- **Stay within scope.** Use `git status --porcelain` after the run (it catches *created* files, not just
+  modified ones): if Codex touched or created any file outside the named set, report it **prominently** so
+  the caller can revert. "No changes at all" is a legitimate outcome for a no-op task — judge by the task,
+  don't treat it as automatic failure or blindly retry.
 - **Never delete files** unless explicitly asked.
 - If the change is destructive or ambiguous, do the **minimal safe** version and flag the ambiguity
   rather than guessing big.
