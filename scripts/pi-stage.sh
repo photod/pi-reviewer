@@ -70,6 +70,24 @@ mkdir -p "$stage"
 
 # Copy each listed (relative) file into the staging tree, preserving structure.
 "$here/pi-filelist.sh" "$repo_dir" "$subpath" | grep -v '^#' > "$stage/.pi-filelist"
+
+# Cheap, friendly disk precheck: sum the sizes of the files we're about to copy and compare to the free
+# space at the snapshot root. Bail BEFORE copying anything if there isn't room — much friendlier than a
+# half-written snapshot dying mid-copy on a cryptic ENOSPC.
+need_kb=0
+while IFS= read -r rel; do
+  [ -z "$rel" ] && continue
+  sz="$(wc -c < "$repo_dir/$rel" 2>/dev/null || printf 0)"
+  need_kb=$(( need_kb + (sz + 1023) / 1024 ))
+done < "$stage/.pi-filelist"
+avail_kb="$(df -Pk "$snap_base" 2>/dev/null | awk 'NR==2 {print $4}')"
+if [ -n "$avail_kb" ] && [ "$avail_kb" -lt $(( need_kb + 4096 )) ]; then
+  rm -rf "$stage"
+  printf 'pi-stage: not enough free space to stage a masked copy — need ~%d KB under %s, only %d KB free.\n' "$need_kb" "$snap_base" "$avail_kb" >&2
+  printf 'pi-stage: free some disk, or set PI_SNAP_ROOT to a roomier volume, then retry.\n' >&2
+  exit 1
+fi
+
 while IFS= read -r rel; do
   [ -z "$rel" ] && continue
   # Defence in depth: reject anything that isn't a clean relative path inside the repo. git ls-files
