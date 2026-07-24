@@ -67,6 +67,7 @@ check() {
   node "${REPO_DIR}/test/scaffold_sync_test.mjs" || rc=1
   PYTHONDONTWRITEBYTECODE=1 python3 "${REPO_DIR}/test/pi_mask_test.py" || rc=1
   bash "${REPO_DIR}/test/pi_filelist_test.sh" || rc=1
+  bash "${REPO_DIR}/test/pi_stage_test.sh" || rc=1
   bash "${REPO_DIR}/test/opencode_watch_test.sh" || rc=1
 
   return "${rc}"

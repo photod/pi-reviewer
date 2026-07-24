@@ -86,6 +86,22 @@ PI masks common secrets before sending anything to the panel — see [Privacy & 
 
 **PI masks before sending, at every scope.** Whatever you point it at — a whole repo, a bare directory, named files, or an ordinary `git diff` — the panel only ever sees a redacted copy. Repos, directories, and named files are staged as masked copies *inside your repo* (`.pi-review/snap-…/`, gitignored, owner-only); a diff or branch review pipes the diff text through the same masker and the panel reviews the masked patch instead of touching your tree. The masker catches common high-value secrets — LLM, cloud, git, and S3 tokens, by prefix and shape. Your source is never modified. Masking is **fail-closed**: if it errors, the run aborts rather than forward anything raw. And you can inspect exactly what was sent — snapshots stay on disk, then auto-prune (newest 10, or older than 7 days).
 
+### How masking applies to each input mode
+
+PI has several review **modes**, and masking is applied differently in each — worth knowing so you are
+never surprised by what a model actually sees:
+
+| Mode | What it reviews | How it's redacted |
+|---|---|---|
+| **diff** *(default)* | a `git diff` | the patch text is piped through the masker (`pi-mask.py` on stdin) |
+| **list** / **curated** | ≤50 named or hand-picked files | files are **staged as masked copies** under `.pi-review/snap-…/`, then reviewed |
+| **pack** | >50 files (whole repo) | a repomix bundle, redacted by **repomix's own `secretlint`** — a *different* redactor, not `pi-mask.py` |
+| **yolo** | the raw tree, unbounded | **not redacted** — explicit opt-in only |
+
+So this repo's masker (`pi-mask.py` + the staging denylist) covers the **diff / list / curated** paths;
+**pack** hands redaction to repomix + secretlint (whatever those catch); **yolo** sends raw by design.
+Whole-repo and single-directory reviews take the staged-copy path.
+
 The single exception is `yolo` mode — explicit-only, never automatic; it sends raw source by definition, and that's the trade you opt into. (`pack` mode relies on repomix's own `secretlint`.) One honest cost: a masked diff review sees only the patch, not the surrounding files — a little context is the price of masking.
 
 - **Preview, in chat:** ask *"what would PI mask in `src/config.py`?"* — the agent runs the masker's preview and shows you exactly what would be redacted, line by line, before anything is sent. (Same thing by hand: `python3 <plugin>/scripts/pi-mask.py --preview path/to/file_or_dir`.) The masked domains are deliberately lean by default — common high-value keys, with broader and higher-noise checks off.

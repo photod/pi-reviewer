@@ -501,5 +501,25 @@ with tempfile.TemporaryDirectory() as tmp:
     check("ssh2 preview keeps markers", any("BEGIN SSH2 PRIVATE KEY" in line and "END SSH2 PRIVATE KEY" in line for line in preview_lines))
     check("block preview hides every private row", all(secret_row not in result.stdout for secret_row in (pem_body, *putty_body.splitlines(), *ssh2_body.splitlines())))
 
+# --- @-in-password: db-uri creds used to stop at the first @ (K3 dogfood finding) ---
+_dburi = active_groups("db-uris")
+_at_out = mask("connect postgres://user:p@ss@w0rd@dbhost:5432/app", _dburi)
+check("db uri password containing @ is fully masked", "p@ss" not in _at_out and "ss@w0rd" not in _at_out)
+check("db uri @-password keeps the host", "@dbhost:5432/app" in _at_out)
+
+# --- binary / non-UTF-8 content is omitted, not staged unmasked (backstop past the extension denylist) ---
+with tempfile.TemporaryDirectory() as _tmp:
+    _blob = pathlib.Path(_tmp) / "notes.txt"           # text extension, but NUL bytes => actually binary
+    _blob.write_bytes(b"HEAD\x00\x00 UNMATCHED_SECRET_abc123XYZ \x00 tail \x00")
+    _rc = subprocess.run([sys.executable, str(_p), str(_blob)], capture_output=True)
+    _body = _blob.read_bytes()
+    check("binary/NUL file omitted from review", _rc.returncode == 0 and b"UNMATCHED_SECRET" not in _body and b"omitted from review" in _body)
+
+with tempfile.TemporaryDirectory() as _tmp:
+    _u16 = pathlib.Path(_tmp) / "config.env"
+    _u16.write_bytes("TOKEN=sk-ant-DO-NOT-LEAK".encode("utf-16"))   # NUL-interleaved
+    subprocess.run([sys.executable, str(_p), str(_u16)], check=True, capture_output=True)
+    check("UTF-16 file omitted from review", b"omitted from review" in _u16.read_bytes())
+
 print("\nALL PASS" if ok else "\nSOME FAILED")
 sys.exit(0 if ok else 1)

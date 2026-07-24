@@ -172,7 +172,6 @@ within ~±2 tokens, (3) run the country checksum, (4) redact only on pass. Disti
 | SSN | US | US | `(?!000\|666\|9\d\d)\d{3}-?(?!00)\d{2}-?(?!0000)\d{4}` | none → keyword `ssn`/`social security` REQUIRED |
 | ABA-routing | US | US | `\d{9}` | `3(d1+d4+d7)+7(d2+d5+d8)+(d3+d6+d9) %10==0`; keyword gate |
 | NPI | US | US | `\d{10}` | luhn of `"80840"+first9`; keyword `npi` |
-| DEA | US | US | `[A-Z]{2}\d{7}` | `((d1+d3+d5)+2(d2+d4+d6))%10==d7`; shape-ish |
 | MBI | US | US | `[0-9][A-HJ-KM-NPQ-RT-VWXY][0-9]{2}[A-HJ-KM-NPQ-RT-VWXY][0-9]{2}[A-HJ-KM-NPQ-RT-VWXY]{2}[0-9]{2}` | none; shape-safe |
 | card-PAN | * | US (or own toggle `PAN`) | `(?:\d[ -]?){13,19}` | luhn + IIN-range + not-all-same; HIGH-VALUE |
 | SIN | CA | CA | `\d{3}[- ]?\d{3}[- ]?\d{3}` | luhn; keyword `sin` when unformatted |

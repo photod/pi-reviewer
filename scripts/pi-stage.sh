@@ -63,14 +63,23 @@ mkdir -p "$stage"
 "$here/pi-filelist.sh" "$repo_dir" "$subpath" | grep -v '^#' > "$stage/.pi-filelist"
 while IFS= read -r rel; do
   [ -z "$rel" ] && continue
+  # Defence in depth: reject anything that isn't a clean relative path inside the repo. git ls-files
+  # never emits these, but a hostile/edge fileList must not let a copy escape the tree.
+  case "$rel" in
+    /*|..|../*|*/..|*/../*) printf 'pi-stage: skipped unsafe path (not staged): %s\n' "$rel" >&2; continue ;;
+  esac
   # SECURITY: never follow a symlink — it could resolve OUTSIDE the repo (e.g. a tracked link to
-  # ~/.ssh/id_rsa) and exfiltrate its target into the snapshot. Skip it; leave a visible note.
+  # ~/.ssh/id_rsa) and exfiltrate its target into the snapshot. Skip it here, AND copy with -P so a
+  # symlink swapped in AFTER this check (TOCTOU) is copied as a link, never dereferenced.
   if [ -L "$repo_dir/$rel" ]; then printf 'pi-stage: skipped symlink (not staged): %s\n' "$rel" >&2; continue; fi
   dest="$stage/$rel"
   mkdir -p "$(dirname "$dest")"
-  cp "$repo_dir/$rel" "$dest"
+  cp -P "$repo_dir/$rel" "$dest"
 done < "$stage/.pi-filelist"
 rm -f "$stage/.pi-filelist"
+# TOCTOU backstop: drop any symlink that still reached the snapshot (swapped in between the -L check
+# and cp -P) so no staged link can resolve to a raw file outside the masked tree.
+find "$stage" -type l -delete
 
 # Mask the COPIES in place; fail closed on any error.
 if ! find "$stage" -type f -print0 | xargs -0 python3 "$here/pi-mask.py"; then

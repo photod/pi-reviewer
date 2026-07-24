@@ -563,8 +563,8 @@ RULES = [
     ("npm", "messaging", None, _rx(r"(npm_)([0-9A-Za-z]{36})"), "prefix", None),
     ("pypi", "messaging", None, _rx(r"(pypi-AgEIcHlwaS5vcmc)([A-Za-z0-9_-]{50,1000})"), "prefix", None),
     # db-uris
-    ("db-uri-creds", "db-uris", None, _rx(r"((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp)://[^:\s\"']+:)([^@\s\"'/]+)(@)"), "db", None),
-    ("basic-auth-url", "db-uris", None, _rx(r"([a-z][a-z0-9+.-]*://[^:\s\"'/]+:)([^@\s\"'/]+)(@)", re.IGNORECASE), "db", None),
+    ("db-uri-creds", "db-uris", None, _rx(r"((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp)://[^:\s\"']+:)([^\s\"'/]+)(@)"), "db", None),
+    ("basic-auth-url", "db-uris", None, _rx(r"([a-z][a-z0-9+.-]*://[^:\s\"'/]+:)([^\s\"'/]+)(@)", re.IGNORECASE), "db", None),
     # private-key blocks; line separators sit outside group 2 so formatting is kept.
     ("gcp-sa-json", "private-keys", None, _rx(r"(\"private_key\"\s*:\s*\"-----BEGIN[^\"]*PRIVATE KEY-----(?:\\n|\r?\n))([\s\S]+?)((?:\\n|\r?\n)-----END[^\"]+\")"), "block", None),
     ("pem-privkey", "private-keys", None, _rx(r"(-----BEGIN[ A-Z0-9]{0,40}PRIVATE KEY-----\r?\n)([\s\S]+?)(\r?\n-----END[ A-Z0-9]{0,40}PRIVATE KEY-----)"), "block", None),
@@ -861,7 +861,13 @@ def main(argv):
         try:
             with open(path, "r", encoding="utf-8", errors="surrogateescape") as f:
                 data = f.read()
-            masked = mask_text(data, active_rules)
+            if "\x00" in data:
+                # Binary or non-UTF-8 (e.g. UTF-16, where ASCII bytes interleave with NULs): the text
+                # regexes cannot reliably find secrets here, so OMIT the content rather than stage it
+                # unmasked. Denylisting excludes known binary extensions before this; this is the backstop.
+                masked = "[pi-mask: binary or non-UTF-8 content omitted from review]\n"
+            else:
+                masked = mask_text(data, active_rules)
             with open(path, "w", encoding="utf-8", errors="surrogateescape") as f:
                 f.write(masked)
         except Exception as exc:

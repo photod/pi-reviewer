@@ -109,6 +109,14 @@ printf 'UPPER\n'   > "$TMPDIR_FIXTURE/src/DEPLOY.KEY"
 printf 'foo src\n' > "$TMPDIR_FIXTURE/src/foo.txt"
 printf 'foo docs\n' > "$TMPDIR_FIXTURE/docs/foo.txt"
 
+# Nested / modern denylist fixtures (K3 dogfood: basename match + dir-depth + tfstate + modern keys).
+mkdir -p "$TMPDIR_FIXTURE/backend" "$TMPDIR_FIXTURE/packages/foo/node_modules" "$TMPDIR_FIXTURE/infra"
+printf 'SECRET=deep\n' > "$TMPDIR_FIXTURE/backend/.env"
+printf 'machine h login u password p\n' > "$TMPDIR_FIXTURE/.netrc"
+printf 'state\n' > "$TMPDIR_FIXTURE/infra/main.tfstate"
+printf 'ed\n' > "$TMPDIR_FIXTURE/id_ed25519"
+printf 'nested vendor\n' > "$TMPDIR_FIXTURE/packages/foo/node_modules/index.js"
+
 git -C "$TMPDIR_FIXTURE" add -A
 git -C "$TMPDIR_FIXTURE" add -f "$TMPDIR_FIXTURE/.env" "$TMPDIR_FIXTURE/deploy.key" "$TMPDIR_FIXTURE/node_modules/x.js" 2>/dev/null || true
 git -C "$TMPDIR_FIXTURE" commit -q -m "fixtures"
@@ -130,6 +138,11 @@ assert_contains     "includes src/a.py"      "$OUT1" "src/a.py"
 assert_contains     "includes src/b.py"      "$OUT1" "src/b.py"
 assert_contains     "includes src/c.py"      "$OUT1" "src/c.py"
 assert_regex        "has file-count summary" "$OUT1" "^# [0-9]+ files$"
+assert_not_contains "denies nested backend/.env (basename match)"  "$OUT1" "backend/.env"
+assert_not_contains "denies .netrc credential file"                "$OUT1" ".netrc"
+assert_not_contains "denies *.tfstate (plaintext secrets)"         "$OUT1" "main.tfstate"
+assert_not_contains "denies modern id_ed25519 private key"         "$OUT1" "id_ed25519"
+assert_not_contains "denies nested node_modules (depth form)"      "$OUT1" "packages/foo/node_modules/index.js"
 
 printf '\n=== Run 2: cap=PI_MAXFILES=2 ===\n'
 OUT2="$(PI_MAXFILES=2 bash "$SCRIPT" "$TMPDIR_FIXTURE")"
