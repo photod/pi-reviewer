@@ -1,6 +1,6 @@
 ---
 name: pi-build
-description: Poor Intelligence's BUILDER (bonus companion to /pi-review). Delegate a scoped, TDD code change to GLM-5.2 via opencode-go — a different model augments the tests, a cross-model pass reviews the diff. Same $10 opencode-go plan as the council. Run /pi-build [low|med|high] <task / files> [model].
+description: PI's builder — bonus companion to /pi-review. Delegates a scoped TDD change to GLM-5.2; a second model augments tests, a cross-model pass reviews the diff.
 argument-hint: "[low|med(default)|high] <task description and/or target files> [implement model: glm(default)|qwen|minimax|deepseek|mimo]"
 ---
 

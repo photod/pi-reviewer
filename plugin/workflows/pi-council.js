@@ -1,6 +1,6 @@
 export const meta = {
   name: 'pi-council',
-  description: 'PI code-review council engine (low/med/high). Invoked by /pi-review — you normally do not run this directly.',
+  description: 'Review council engine — invoked by /pi-review, not run directly.',
   phases: [
     { title: 'Review' },
     { title: 'Synthesize' },

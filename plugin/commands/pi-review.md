@@ -1,6 +1,6 @@
 ---
 name: pi-review
-description: Poor Intelligence — that's PI, not AI ;-). A code-review council of cheap opencode-go models instead of one pricey genius: they fan out in parallel, a glm-5.2 chairman reconciles ONE verdict. Run /pi-review [low|med|high] [target] [chairman] [kimiMode].
+description: Poor Intelligence, not AI ;-) — a council of cheap opencode-go models fans out; a glm-5.2 chairman reconciles ONE verdict.
 argument-hint: "[low|med(default)|high] [target] [chairman: glm-5.2(default)|opus|sonnet] [kimiMode: opencode(default)|cli|off]"
 ---
 
