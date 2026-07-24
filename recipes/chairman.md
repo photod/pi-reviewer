@@ -7,9 +7,9 @@ The second rung of the ladder: reviewers coached toward Opus, the Opus chairman 
 Adapted (clean-room, re-expressed for synthesis) from the integrity/verification discipline of the
 Fable-5 methodology by UnpaidAttention — https://github.com/UnpaidAttention/fable5-methodology
 Caveat: benefit UNVERIFIED (its A/B harness was never run). Embedded because it's cheap and plausible.
-NOTE: this text is EMBEDDED as the `CHAIRMAN_SCAFFOLD` constant in the engine
-`plugin/workflows/pi-council.js` (a Workflow has NO filesystem access, so it canNOT read this .md at
-runtime). This file is the human-readable copy; to change behavior edit `CHAIRMAN_SCAFFOLD` in
+NOTE: the engine `plugin/workflows/pi-council.js` embeds a **condensed** variant of this as its
+`CHAIRMAN_SCAFFOLD` constant (a Workflow has NO filesystem access, so it canNOT read this .md at
+runtime) — they are NOT byte-identical. This file is the human-readable source; to change behavior edit `CHAIRMAN_SCAFFOLD` in
 `plugin/workflows/pi-council.js`, then copy it to the installed engine at
 `~/.claude/workflows/pi-council.js` (the `/pi-review` command self-installs that copy on fresh install).
 -->

@@ -1,12 +1,11 @@
-// Unit test of coverageLine() — mirrors the pure function in pi-council.js.
-// The footer must be NON-EMPTY in every case (soft-degrade, never silent).
-function coverageLine({ mode, ok, total, unavailable, files, dropped }) {
-  let s = `coverage: ${mode} · ${ok}/${total} leaves OK`
-  if (unavailable && unavailable.length) s += ` · ${unavailable.length} UNAVAILABLE (${unavailable.join(', ')})`
-  if (files) s += ` · reviewed ${files} file(s)`
-  if (dropped) s += `, dropped ${dropped}`
-  return s
-}
+// Unit test of coverageLine() — EXTRACTED from pi-council.js at runtime so this test can never DRIFT
+// from the real function (K3 dogfood: a hand-copied duplicate silently diverges). The footer must be
+// NON-EMPTY in every case (soft-degrade, never silent).
+import fs from 'node:fs'
+const _src = fs.readFileSync(new URL('../plugin/workflows/pi-council.js', import.meta.url), 'utf8')
+const _m = _src.match(/function coverageLine\([\s\S]*?\n\}/)
+if (!_m) { console.log('FAIL could not extract coverageLine from pi-council.js'); process.exit(1) }
+const coverageLine = new Function('return (' + _m[0] + ')')()
 
 let ok = true
 const check = (name, cond) => { if (!cond) { ok = false; console.log(`FAIL ${name}`) } else console.log(`PASS ${name}`) }

@@ -13,12 +13,16 @@ findings only). You orchestrate; you do NOT write the review yourself.
 
 Reconfiguration lives in a config the command reads — NOT in per-call args (those are one-off overrides).
 1. **Standing config:** if `~/.claude/pi.json` exists, read it for defaults — keys: `tier`, `chairman`,
-   `kimiMode`, `edition`. This is where a host is set up ONCE (e.g. `{"kimiMode":"cli"}` to use the native
+   `kimiMode`. This is where a host is set up ONCE (e.g. `{"kimiMode":"cli"}` to use the native
    Kimi CLI instead of opencode-go kimi). **No file → built-in defaults** (the fridge still works):
    `tier=med`, `chairman=glm-5.2`, `kimiMode=opencode`.
 2. **Per-call overrides:** parse `$ARGUMENTS` and let them override the config for THIS run only — a tier
    keyword (`low`/`med`/`high`), a target (path/glob/`diff`/`branch`; default `git diff HEAD`), a chairman
-   (`opus`/`sonnet`/an `opencode-go/<alias>`), a `kimiMode` (`opencode`/`cli`/`off`).
+   (`opus`/`sonnet`/an `opencode-go/<alias>`), a `kimiMode` (`opencode`/`cli`/`off`), and any number of
+   on-demand review **lenses** via `--lens <name>` or `lens=<name>` (repeatable, e.g. `--lens security
+   --lens ux`). Collect them into a `lenses` array passed in the Workflow args (below); the engine adds
+   them on top of the always-on default lenses and ignores unknown names with a note. Valid on-demand
+   lenses: `ux`, `blastradius`, `security`, `simplicity`, `honesty` (see `lenses.md`).
 
 Tiers: `low` = 3 cheap models · `med` = glm + qwen + kimi (default) · `high` = all 6 + high-effort synth
 (`max` / `ultra` are accepted as aliases for `high` — people forget which word is the top).
@@ -104,7 +108,7 @@ Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by de
    ```
    Workflow({
      scriptPath: "~/.claude/workflows/pi-council.js",
-     args: { tier, target, workdir: <cwd or the target's dir>, chairmanModel, kimiMode, mode, ...(fileList ? {fileList} : {}), ...(dropped ? {dropped} : {}) }
+     args: { tier, target, workdir: <cwd or the target's dir>, chairmanModel, kimiMode, mode, ...(fileList ? {fileList} : {}), ...(dropped ? {dropped} : {}), ...(lenses && lenses.length ? {lenses} : {}) }
    })
    ```
    Pass `mode` (diff/feature/list/pack/curated/yolo — default `diff` for non-whole-repo) so the coverage

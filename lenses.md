@@ -1,17 +1,18 @@
 # PI review lenses — the canned set
 
-Ten baked review angles. The point: a careless or non-expert user runs `/pi` and gets expert-grade
+Ten baked review angles. The point: a careless or non-expert user runs `/pi-review` and gets expert-grade
 lenses applied *for* them — the lens does the thinking. **P.I. for non-I.**
 
 > **Source of truth:** these lenses are EMBEDDED as the `LENSES` map in
-> `~/.claude/workflows/meta-review.js` (a Workflow has no filesystem access, so it can't read this
-> file at runtime). The 5 **default** lenses are always injected into every leaf; the 5 **on-demand**
-> ones are added via `args.lenses = ['security', …]`. This file is the human-readable copy — to change
-> behavior, edit the `LENSES` map in the workflow and re-run `install-workflow.sh`.
+> `plugin/workflows/pi-council.js` (a Workflow has no filesystem access, so it can't read this file at
+> runtime). The 5 **default** lenses are always injected into every leaf; the 5 **on-demand** ones are
+> added when the `/pi-review` command passes `args.lenses = ['security', …]` (via `--lens <name>`). This
+> file is the human-readable copy — to change behavior, edit the `LENSES` map in
+> `plugin/workflows/pi-council.js` and copy it to the installed `~/.claude/workflows/pi-council.js`.
 
 - **Default set** (always applied, no thought required): Contradiction, Feasibility, Human,
   Negative-Space, Failure-Modes. These are the five that catch the bugs that actually hurt.
-- **On-demand** (aim one by name, e.g. `/pi --lens security`): UX, Blast-Radius, Security,
+- **On-demand** (aim one by name, e.g. `/pi-review --lens security`): UX, Blast-Radius, Security,
   Simplicity, Honesty.
 
 Each lens is a self-contained instruction handed to a reviewer. Tone is fixed: sharp, specific,

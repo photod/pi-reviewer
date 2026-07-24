@@ -7,10 +7,12 @@ attempts a stronger model's discipline.
 Adapted (clean-room, re-expressed for reviewing) from the "Difference Layer" cognitive moves in
 the Fable-5 methodology by UnpaidAttention — https://github.com/UnpaidAttention/fable5-methodology
 Caveat: that methodology's head-to-head benefit is UNVERIFIED (its own A/B harness was never run).
-We embed it because it's cheap and plausible, not because it's proven. NOTE: this text is EMBEDDED as
-the `LEAF_SCAFFOLD` constant in the engine `plugin/workflows/pi-council.js` — a Workflow has NO
-filesystem access, so it canNOT read this .md at runtime. This file is the human-readable copy; to
-change behavior, edit `LEAF_SCAFFOLD` in `plugin/workflows/pi-council.js`, then copy it to the installed
+We embed it because it's cheap and plausible, not because it's proven. NOTE: the engine
+`plugin/workflows/pi-council.js` embeds a **condensed** variant of this as its `LEAF_SCAFFOLD` constant
+(a Workflow has NO filesystem access, so it canNOT read this .md at runtime) — the two are NOT
+byte-identical. The block between the `PI-LEAF-SCAFFOLD` markers below IS mirrored verbatim into
+`plugin/agents/kimi-reviewer.md` (for standalone Kimi runs) and guarded by `test/scaffold_sync_test.mjs`.
+To change review behavior, edit the condensed `LEAF_SCAFFOLD` in `plugin/workflows/pi-council.js`, then copy it to the installed
 engine at `~/.claude/workflows/pi-council.js` (the `/pi-review` command self-installs that copy on a
 fresh plugin install).
 -->

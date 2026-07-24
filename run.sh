@@ -53,14 +53,25 @@ check() {
     rc=1
   fi
 
-  for file in pi-filelist.sh pi-stage.sh pi-mask.py masker-rules.md pi-mask.config.example.json opencode-watch.sh; do
-    if cmp -s -- "${REPO_DIR}/scripts/${file}" "${REPO_DIR}/plugin/scripts/${file}"; then
-      log "Claude plugin script in sync: ${file}"
+  if diff -rq "${REPO_DIR}/scripts" "${REPO_DIR}/plugin/scripts" >/dev/null 2>&1; then
+    log "Claude plugin scripts in sync (scripts/ == plugin/scripts/)"
+  else
+    warn "Claude plugin script drift (scripts/ vs plugin/scripts/):"
+    diff -rq "${REPO_DIR}/scripts" "${REPO_DIR}/plugin/scripts" >&2 || true
+    rc=1
+  fi
+
+  if command -v shellcheck >/dev/null 2>&1; then
+    if shellcheck --severity=error "${REPO_DIR}"/scripts/*.sh "${REPO_DIR}"/test/*.sh "${REPO_DIR}/run.sh" >/dev/null 2>&1; then
+      log "shellcheck clean (scripts, tests, run.sh)"
     else
-      warn "Claude plugin script drift: ${file}"
+      warn "shellcheck reported errors:"
+      shellcheck --severity=error "${REPO_DIR}"/scripts/*.sh "${REPO_DIR}"/test/*.sh "${REPO_DIR}/run.sh" >&2 || true
       rc=1
     fi
-  done
+  else
+    log "shellcheck absent — skipped (optional)"
+  fi
 
   node "${REPO_DIR}/test/coverage_footer_test.mjs" || rc=1
   node "${REPO_DIR}/test/tier_contract_test.mjs" || rc=1
