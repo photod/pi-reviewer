@@ -50,7 +50,7 @@ denylist_paths=(
   '.netrc' '_netrc' '*.netrc'
   '.npmrc' '.pypirc' '.git-credentials'
   '.htpasswd' '*.htpasswd'
-  '.dockercfg' '.docker/config.json'
+  '.dockercfg' '.docker/config.json' '*/.docker/config.json' '.docker/*' '*/.docker/*'
   '.pgpass' '.my.cnf' '.boto' '.s3cfg' '.terraformrc'
   # private keys & keystores
   '*.pem' '*.key' '*.p12' '*.pfx' '*.jks' '*.keystore' '*.keytab'

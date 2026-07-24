@@ -490,6 +490,12 @@ with tempfile.TemporaryDirectory() as _tmp:
     _r = subprocess.run([sys.executable, str(_p), "--config", str(_bad), "-"], input="x", capture_output=True, text=True)
     check("unknown config group key rejected (fail-closed)", _r.returncode == 1 and "unknown" in _r.stderr.lower())
 
+# the shipped example config carries a "_comment"; a leading-underscore key is allowed (else copying the
+# example verbatim would fail-closed and abort every review).
+_example = _p.parent / "pi-mask.config.example.json"
+_re = subprocess.run([sys.executable, str(_p), "--config", str(_example), "-"], input="x", capture_output=True, text=True)
+check("shipped example config loads (leading-underscore _comment allowed)", _re.returncode == 0)
+
 with tempfile.TemporaryDirectory() as tmp:
     root = pathlib.Path(tmp)
     sample = root / "private-keys.txt"

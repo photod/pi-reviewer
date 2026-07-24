@@ -42,12 +42,17 @@ codex exec --sandbox workspace-write -c approval_policy=never --skip-git-repo-ch
 ## Workflow
 
 1. Identify the concrete change set from the prompt you received.
-2. Call codex with the write pattern. Bash timeout 600000ms.
+2. **Baseline first, then call.** So you can attribute exactly what Codex changed (not pre-existing dirty
+   state): in a git repo, record `git -C WORKDIR status --porcelain` *before* the call; for a non-git
+   WORKDIR, drop a timestamp marker outside it — `touch /tmp/cody-baseline-$$` — so a later
+   `find WORKDIR -newer /tmp/cody-baseline-$$` actually resolves. Then call codex with the write pattern;
+   Bash timeout 600000ms.
 3. After it returns, capture WHAT CHANGED. Prefer `git -C WORKDIR status --porcelain` — it lists
    **modified AND newly-created (untracked)** files, which `git diff --stat` alone misses (a Codex-created
    out-of-scope file would otherwise slip through). Add `git -C WORKDIR diff` for the key modified files.
    **If WORKDIR is not a git repo** (the case `--skip-git-repo-check` allows), git fails — say so and flag
-   that scope could not be fully verified (fall back to a `find WORKDIR -newer <pre-run marker>` listing).
+   that scope could not be fully verified (fall back to `find WORKDIR -newer /tmp/cody-baseline-$$` using
+   the step-2 marker, diffing against the pre-run status).
    Run any quick check that fits: `bash -n`, `python3 -m py_compile`, `node --check`, `shellcheck`.
 4. Do **NOT** commit — leave that to the caller.
 5. Return: files changed, the key diffs, syntax/lint status, and anything Codex skipped or did beyond

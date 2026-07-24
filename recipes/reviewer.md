@@ -11,7 +11,8 @@ We embed it because it's cheap and plausible, not because it's proven. NOTE: the
 `plugin/workflows/pi-council.js` embeds a **condensed** variant of this as its `LEAF_SCAFFOLD` constant
 (a Workflow has NO filesystem access, so it canNOT read this .md at runtime) — the two are NOT
 byte-identical. The block between the `PI-LEAF-SCAFFOLD` markers below IS mirrored verbatim into
-`plugin/agents/kimi-reviewer.md` (for standalone Kimi runs) and guarded by `test/scaffold_sync_test.mjs`.
+`plugin/agents/kimi-reviewer.md` and `cody/agents/cody-reviewer.md` (standalone Kimi/Codex runs) and
+guarded by `test/scaffold_sync_test.mjs`.
 To change review behavior, edit the condensed `LEAF_SCAFFOLD` in `plugin/workflows/pi-council.js`, then copy it to the installed
 engine at `~/.claude/workflows/pi-council.js` (the `/pi-review` command self-installs that copy on a
 fresh plugin install).

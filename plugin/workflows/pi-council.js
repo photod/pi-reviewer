@@ -154,7 +154,7 @@ function parseFileList(raw) {
   const str = String(raw)
   if (!str.trim()) return []
   return str
-    .split(/[\s\n]+/)                  // newline- AND/OR space-separated
+    .split(/\n+/)                      // newline-separated ONLY — paths may contain spaces
     .map(s => s.trim())
     .filter(s => s.length > 0 && !s.startsWith('#'))
 }
@@ -205,7 +205,7 @@ function oppyPrompt(alias) {
   return `Use model ${alias} via opencode (with --agent plan). Workdir: ${workdir}. Review: ${target}. CRITICAL: the review prompt you SEND THE BACKEND must BEGIN with the scaffold below VERBATIM — pass it through exactly, do NOT summarize or paraphrase it — and only then add the target/instructions:\n\n===== SCAFFOLD (send verbatim) =====\n${LEAF_SCAFFOLD}\n===== END SCAFFOLD =====\n\nSIZE RULE: if the target is a small diff/excerpt, paste it into the opencode prompt; if it is large (a packed repo or a big file, more than ~10k tokens), ATTACH it via -f rather than pasting — pasting a huge blob into the CLI argument overflows arg/prompt limits and fails. ${WHOLE_REPO_RULE}`
 }
 function kimiPrompt() {
-  return `Review via Kimi CLI. Workdir: ${workdir}. Review: ${target}. Read the target files yourself, but read ONLY files under ${workdir} — never read, list, or fetch anything outside it, and do NOT create, edit, or delete files or run any commands (it is a masked snapshot: reading outside leaks raw source, and a review never writes). Apply the scaffold below as your review discipline (do NOT paraphrase it away), then review:\n\n${LEAF_SCAFFOLD}\n\nDimensions: correctness, security, race conditions, performance, architecture fit. ${TONE} ${LEAF_LAST}`
+  return `Review via Kimi CLI. Workdir: ${workdir}. Review: ${target}. Read the target files yourself, but read ONLY files under ${workdir} — never read, list, or fetch anything outside it, and do NOT create, edit, or delete files or run any commands (it is a masked snapshot: reading outside leaks raw source, and a review never writes). Apply the scaffold below as your review discipline (do NOT paraphrase it away), then review:\n\n${LEAF_SCAFFOLD}\n\n${WHOLE_REPO_RULE}`
 }
 
 // --- Review phase: fan out to N single-model leaves in parallel ---------------
@@ -270,9 +270,10 @@ if (chairmanModel === 'opus' || chairmanModel === 'sonnet') {
 }
 // A dead/errored chairman must NOT discard the collected leaf reviews — the panel's value is the
 // reviews; synthesis is a convenience on top. (The full-panel dogfood flagged this as the one unguarded SPOF.)
-if (!synthesis || !String(synthesis).trim()) {
-  synthNote = synthNote || `chairman (${chairmanModel}) returned no synthesis`
+if (!synthesis || !String(synthesis).trim() || isUnavailable({ review: synthesis })) {
+  synthNote = synthNote || `chairman (${chairmanModel}) returned no usable synthesis (empty or UNAVAILABLE)`
   log(`${synthNote} — returning ${usable.length} leaf reviews unreconciled`)
+  synthesis = null  // a dead chairman's bare "UNAVAILABLE" string must NOT be returned as the verdict
 }
 
 // Coverage footer is ALWAYS appended to the verdict text (even a clean run) and returned as a field.

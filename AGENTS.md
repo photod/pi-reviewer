@@ -8,11 +8,13 @@ Poor Intelligence (PI) is a multi-model review council and a small-change builde
 Code (`plugin/`). The external OpenCode-Go/Kimi models are the product; Claude orchestrates them but
 must never replace a failed leaf with its own review.
 
-A Codex edition was built and shipped experimentally but never became reliable — Codex's managed
-Auto-review policy blocks exporting workspace data to third-party model endpoints even with explicit
-consent, and there was no consistent way around it. It has been removed from `main` entirely; the full
-abandoned experiment (the old `plugins/pi/` tree) is preserved on the `codex` branch. `main` is
-Claude-only — do not reintroduce Codex-facing code here.
+A Codex **edition** (Codex-as-host: running the whole council *inside* `codex exec`) was built and shipped
+experimentally but never became reliable — Codex's managed Auto-review policy blocks exporting workspace
+data to third-party endpoints even with explicit consent, with no consistent way around it. That edition
+was removed from `main` entirely; the abandoned experiment (the old `plugins/pi/` tree) is preserved on the
+`codex` branch — do **not** resurrect Codex-as-host here. Distinct from that: the small opt-in `cody/`
+plugin uses the Codex **CLI** as an *optional* non-Claude review/worker arm (`cody-reviewer` /
+`cody-worker`) — that is intentional and fine; it's a bonus arm, not the host.
 
 ## Boundaries
 

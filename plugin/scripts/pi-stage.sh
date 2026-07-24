@@ -67,6 +67,9 @@ find "$snaproot" -mindepth 1 -maxdepth 1 -type d -name 'snap-*' -mtime +"$snap_d
 ms="$(python3 -c 'import time; print(int(time.time()*1000))')"
 stage="$snaproot/snap-${ms}-$$"
 mkdir -p "$stage"
+# Fail closed on INTERRUPT too: if we are killed between the raw copy and masking, the snapshot could hold
+# raw (unmasked) files — remove it on any early exit/signal. Cleared only after masking succeeds.
+trap 'rm -rf "$stage" 2>/dev/null' EXIT INT TERM
 
 # Copy each listed (relative) file into the staging tree, preserving structure.
 "$here/pi-filelist.sh" "$repo_dir" "$subpath" | grep -v '^#' > "$stage/.pi-filelist"
@@ -115,4 +118,5 @@ if ! find "$stage" -type f -print0 | xargs -0 python3 "$here/pi-mask.py"; then
   exit 1
 fi
 
+trap - EXIT INT TERM   # masking done — the snapshot is safe to keep and return
 printf '%s\n' "$stage"

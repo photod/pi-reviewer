@@ -56,7 +56,9 @@ def load_config(config_path=None):
         supplied = json.load(f)
     if not isinstance(supplied, dict):
         raise ValueError("config must be a JSON object")
-    unknown_top = set(supplied) - {"groups", "national_ids"}
+    # Reject unknown keys (fail-closed), but allow `_`-prefixed keys as free-form comments (the shipped
+    # pi-mask.config.example.json carries a "_comment" — copying it verbatim must produce a VALID config).
+    unknown_top = {k for k in supplied if not k.startswith("_")} - {"groups", "national_ids"}
     if unknown_top:
         raise ValueError("unknown config key(s): " + ", ".join(sorted(unknown_top)))
     for section in ("groups", "national_ids"):
