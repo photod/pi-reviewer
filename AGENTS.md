@@ -8,12 +8,11 @@ Poor Intelligence (PI) is a multi-model review council and a small-change builde
 Code (`plugin/`). The external OpenCode-Go/Kimi models are the product; Claude orchestrates them but
 must never replace a failed leaf with its own review.
 
-A Codex edition (`plugins/pi/`) was built and shipped experimentally but never became reliable — Codex's
-managed Auto-review policy blocks exporting workspace data to third-party model endpoints even with
-explicit consent, and there was no consistent way around it. It is no longer presented as an installable
-plugin (no `.codex-plugin` manifest, no marketplace entry); its scripts/skills/tests remain in the tree
-only because removing them isn't free and they're harmless. The full working state before it was dropped
-is preserved on the `codex` branch. Do not build new Codex-facing features on `plugins/pi/`.
+A Codex edition was built and shipped experimentally but never became reliable — Codex's managed
+Auto-review policy blocks exporting workspace data to third-party model endpoints even with explicit
+consent, and there was no consistent way around it. It has been removed from `main` entirely; the full
+abandoned experiment (the old `plugins/pi/` tree) is preserved on the `codex` branch. `main` is
+Claude-only — do not reintroduce Codex-facing code here.
 
 ## Boundaries
 
@@ -31,13 +30,11 @@ is preserved on the `codex` branch. Do not build new Codex-facing features on `p
 
 ## Validation
 
-Run `./run.sh check`. It validates Claude frontmatter/manifests, the dormant Codex skills/agent TOMLs
-and their activation-manager scripts, synchronized bundled scripts, and all test suites.
+Run `./run.sh check`. It validates Claude frontmatter/manifests, synchronized bundled scripts, and all
+test suites.
 
-Scripts are mirrored three ways and must stay identical (the check fails on drift): `scripts/` is the
-source of truth, `plugin/scripts/` is the Claude plugin bundle (commands/agents reference it as
-`${CLAUDE_PLUGIN_ROOT}/scripts/...`), and `plugins/pi/scripts/` is the dormant Codex bundle. Likewise
-`plugin/agents/*.md` and `plugin/workflows/pi-council.js` are mirrored into `plugins/pi/references/`.
+Scripts are mirrored two ways and must stay identical (the check fails on drift): `scripts/` is the
+source of truth and `plugin/scripts/` is the Claude plugin bundle (commands/agents reference it as
+`${CLAUDE_PLUGIN_ROOT}/scripts/...`).
 
 Use strict Bash (`set -euo pipefail`), quote variables, and keep committed shell scripts shellcheck-clean.
-Every TOML must parse with Python 3.11+ `tomllib`.

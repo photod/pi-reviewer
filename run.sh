@@ -2,7 +2,6 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CODEX_PLUGIN="${REPO_DIR}/plugins/pi"
 
 log() { printf '==> %s\n' "$*"; }
 warn() { printf '[warn] %s\n' "$*" >&2; }
@@ -12,7 +11,7 @@ frontmatter() {
 }
 
 check() {
-  local rc=0 file fm temp_home
+  local rc=0 file fm
 
   for file in "${REPO_DIR}"/plugin/agents/*.md "${REPO_DIR}"/plugin/commands/*.md; do
     fm="$(frontmatter "${file}")"
@@ -54,29 +53,7 @@ check() {
     rc=1
   fi
 
-  for file in "${CODEX_PLUGIN}"/agents/*.toml; do
-    if python3 -c 'import sys,tomllib; tomllib.load(open(sys.argv[1], "rb"))' "${file}"; then
-      log "Codex agent TOML ok: $(basename "${file}")"
-    else
-      warn "invalid Codex agent TOML: ${file}"
-      rc=1
-    fi
-  done
-  if python3 -c 'import sys,tomllib; tomllib.load(open(sys.argv[1], "rb"))' \
-      "${CODEX_PLUGIN}/profiles/pi.config.toml"; then
-    log "Codex PI profile TOML ok"
-  else
-    warn "invalid Codex PI profile TOML"
-    rc=1
-  fi
-
   for file in pi-filelist.sh pi-stage.sh pi-mask.py masker-rules.md pi-mask.config.example.json opencode-watch.sh; do
-    if cmp -s -- "${REPO_DIR}/scripts/${file}" "${CODEX_PLUGIN}/scripts/${file}"; then
-      log "bundled script in sync: ${file}"
-    else
-      warn "bundled script drift: ${file}"
-      rc=1
-    fi
     if cmp -s -- "${REPO_DIR}/scripts/${file}" "${REPO_DIR}/plugin/scripts/${file}"; then
       log "Claude plugin script in sync: ${file}"
     else
@@ -84,47 +61,12 @@ check() {
       rc=1
     fi
   done
-  for file in pi-council.js glm-worker.md oppy-reviewer.md kimi-reviewer.md; do
-    case "${file}" in
-      pi-council.js) local source="${REPO_DIR}/plugin/workflows/${file}" ;;
-      *) local source="${REPO_DIR}/plugin/agents/${file}" ;;
-    esac
-    if cmp -s -- "${source}" "${CODEX_PLUGIN}/references/${file}"; then
-      log "Codex reference in sync: ${file}"
-    else
-      warn "Codex reference drift: ${file}"
-      rc=1
-    fi
-  done
-
-  temp_home="$(mktemp -d)"
-  if CODEX_HOME="${temp_home}" python3 "${CODEX_PLUGIN}/scripts/manage_agents.py" install >/dev/null &&
-      CODEX_HOME="${temp_home}" python3 "${CODEX_PLUGIN}/scripts/manage_agents.py" check >/dev/null &&
-      CODEX_HOME="${temp_home}" python3 "${CODEX_PLUGIN}/scripts/manage_agents.py" uninstall >/dev/null; then
-    log "Codex agent manager lifecycle ok"
-  else
-    warn "Codex agent manager lifecycle failed"
-    rc=1
-  fi
-  rm -rf -- "${temp_home}"
-
-  temp_home="$(mktemp -d)"
-  if CODEX_HOME="${temp_home}" python3 "${CODEX_PLUGIN}/scripts/manage_profile.py" install >/dev/null &&
-      CODEX_HOME="${temp_home}" python3 "${CODEX_PLUGIN}/scripts/manage_profile.py" check >/dev/null &&
-      CODEX_HOME="${temp_home}" python3 "${CODEX_PLUGIN}/scripts/manage_profile.py" uninstall >/dev/null; then
-    log "Codex PI profile manager lifecycle ok"
-  else
-    warn "Codex PI profile manager lifecycle failed"
-    rc=1
-  fi
-  rm -rf -- "${temp_home}"
 
   node "${REPO_DIR}/test/coverage_footer_test.mjs" || rc=1
   node "${REPO_DIR}/test/tier_contract_test.mjs" || rc=1
   PYTHONDONTWRITEBYTECODE=1 python3 "${REPO_DIR}/test/pi_mask_test.py" || rc=1
   bash "${REPO_DIR}/test/pi_filelist_test.sh" || rc=1
   bash "${REPO_DIR}/test/opencode_watch_test.sh" || rc=1
-  PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s "${REPO_DIR}/test" -p 'test_*.py' || rc=1
 
   return "${rc}"
 }
