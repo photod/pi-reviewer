@@ -13,7 +13,7 @@ frontmatter() {
 check() {
   local rc=0 file fm
 
-  for file in "${REPO_DIR}"/plugin/agents/*.md "${REPO_DIR}"/plugin/commands/*.md; do
+  for file in "${REPO_DIR}"/plugin/agents/*.md "${REPO_DIR}"/plugin/commands/*.md "${REPO_DIR}"/cody/agents/*.md; do
     fm="$(frontmatter "${file}")"
     if [[ -n "${fm}" ]] && printf '%s\n' "${fm}" | grep -q '^name:'; then
       log "Claude frontmatter ok: $(basename "${file}")"
@@ -46,6 +46,7 @@ check() {
 
   if python3 -c 'import json,sys; [json.load(open(p)) for p in sys.argv[1:]]' \
       "${REPO_DIR}/plugin/.claude-plugin/plugin.json" \
+      "${REPO_DIR}/cody/.claude-plugin/plugin.json" \
       "${REPO_DIR}/.claude-plugin/marketplace.json"; then
     log "plugin manifests ok"
   else

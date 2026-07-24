@@ -8,6 +8,11 @@
       "name": "pi",
       "source": "./plugin",
       "description": "Poor Intelligence: a code-review council of cheap opencode-go models instead of one pricey genius. They fan out in parallel, a glm-5.2 chairman reconciles them into one verdict. Run /pi-review [low|med|high] [target]."
+    },
+    {
+      "name": "cody",
+      "source": "./cody",
+      "description": "Bonus: OpenAI Codex CLI as a non-Claude reviewer (cody-reviewer, Fable-coached) + write-mode worker (cody-worker). Requires the codex CLI."
     }
   ]
 }

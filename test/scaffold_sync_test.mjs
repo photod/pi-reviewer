@@ -23,9 +23,11 @@ const between = (text, label) => {
 }
 
 const recipe = between(read('recipes/reviewer.md'), 'recipes/reviewer.md')
-const agent = between(read('plugin/agents/kimi-reviewer.md'), 'plugin/agents/kimi-reviewer.md')
+const kimi = between(read('plugin/agents/kimi-reviewer.md'), 'plugin/agents/kimi-reviewer.md')
+const cody = between(read('cody/agents/cody-reviewer.md'), 'cody/agents/cody-reviewer.md')
 
 check('recipe scaffold is non-trivial', (recipe?.length ?? 0) > 200)
-check('agent scaffold matches recipes/reviewer.md (no drift)', recipe !== null && agent === recipe)
+check('kimi-reviewer scaffold matches recipes/reviewer.md (no drift)', recipe !== null && kimi === recipe)
+check('cody-reviewer scaffold matches recipes/reviewer.md (no drift)', recipe !== null && cody === recipe)
 
 process.exit(ok ? 0 : 1)
