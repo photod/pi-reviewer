@@ -54,7 +54,7 @@ const TIERS = {
 // opencode --variant normalizer: keep the low/medium/high vocabulary, accept shorthand (med→medium,
 // min→minimal), pass valid tokens through; fall back to 'medium' so a leaf never silently loses effort.
 const VARIANT_ALIAS = { min: 'minimal', minimal: 'minimal', low: 'low', med: 'medium', medium: 'medium', high: 'high', max: 'max' }
-const variantOf = e => VARIANT_ALIAS[String(e).toLowerCase()] || 'medium'
+const variantOf = e => VARIANT_ALIAS[String(e).trim().toLowerCase()] || 'medium'
 
 // Coverage footer — ALWAYS emitted (even on a clean full run), so its absence can never be mistaken
 // for "nothing degraded". Pure function of the run's facts (soft-degrade, but never silent).
@@ -68,7 +68,7 @@ function coverageLine({ mode, ok, total, unavailable, files, dropped }) {
 
 // --- Args (tolerate object OR JSON string; harness-dependent) ----------------
 let A = {}
-if (args && typeof args === 'object') A = args
+if (typeof args !== 'undefined' && args && typeof args === 'object') A = args
 else if (typeof args === 'string' && args.trim()) { try { A = JSON.parse(args) } catch (e) { A = {} } }
 if (!A || typeof A !== 'object' || Array.isArray(A)) A = {}  // JSON.parse('null'/'0'/'"x"'/'[…]') yields a non-object — normalize so A.tier never throws
 
@@ -205,7 +205,7 @@ function oppyPrompt(alias) {
   return `Use model ${alias} via opencode (with --agent plan). Workdir: ${workdir}. Review: ${target}. CRITICAL: the review prompt you SEND THE BACKEND must BEGIN with the scaffold below VERBATIM — pass it through exactly, do NOT summarize or paraphrase it — and only then add the target/instructions:\n\n===== SCAFFOLD (send verbatim) =====\n${LEAF_SCAFFOLD}\n===== END SCAFFOLD =====\n\nSIZE RULE: if the target is a small diff/excerpt, paste it into the opencode prompt; if it is large (a packed repo or a big file, more than ~10k tokens), ATTACH it via -f rather than pasting — pasting a huge blob into the CLI argument overflows arg/prompt limits and fails. ${WHOLE_REPO_RULE}`
 }
 function kimiPrompt() {
-  return `Review via Kimi CLI. Workdir: ${workdir}. Review: ${target}. Read the target files yourself, but read ONLY files under ${workdir} — never read, list, or fetch anything outside it (it is a masked snapshot; reading outside leaks raw source). Apply the scaffold below as your review discipline (do NOT paraphrase it away), then review:\n\n${LEAF_SCAFFOLD}\n\nDimensions: correctness, security, race conditions, performance, architecture fit. ${TONE} ${LEAF_LAST}`
+  return `Review via Kimi CLI. Workdir: ${workdir}. Review: ${target}. Read the target files yourself, but read ONLY files under ${workdir} — never read, list, or fetch anything outside it, and do NOT create, edit, or delete files or run any commands (it is a masked snapshot: reading outside leaks raw source, and a review never writes). Apply the scaffold below as your review discipline (do NOT paraphrase it away), then review:\n\n${LEAF_SCAFFOLD}\n\nDimensions: correctness, security, race conditions, performance, architecture fit. ${TONE} ${LEAF_LAST}`
 }
 
 // --- Review phase: fan out to N single-model leaves in parallel ---------------
@@ -238,7 +238,7 @@ const allReviews = (await parallel(reviewThunks)).filter(Boolean)
 // Match the status declaration at a line start — NOT the bare word, which legitimately appears in
 // any review that happens to discuss an "UNAVAILABLE" mechanism (this false-positive nuked a whole
 // synthesis once: all 6 reviews mentioned the word while critiquing a design about it).
-const isUnavailable = r => /(^|\n)[\s>*\-]*\**status\**\s*:\s*\**UNAVAILABLE/i.test(String(r.review || ''))
+const isUnavailable = r => /(^|\n)[>\-\s*`]*status[\s*`]*:[\s*`]*UNAVAILABLE/i.test(String(r.review || ''))
 const usable = allReviews.filter(r => !isUnavailable(r))
 const unavailable = allReviews.filter(isUnavailable).map(r => r.label)
 log(`${usable.length}/${allReviews.length} usable reviews` + (unavailable.length ? ` — UNAVAILABLE: ${unavailable.join(', ')}` : ''))

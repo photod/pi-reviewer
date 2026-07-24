@@ -56,15 +56,17 @@ This is the #1 cause of oppy-reviewer hangs; the `-m` flag is not optional.
 
 ## RECONCILE mode (you are the chairman, not a reviewer)
 
-If the caller's task says it is a **SYNTHESIS / RECONCILE** task — reviews pasted inline, "do NOT read
-source files" — then you are reconciling a panel, NOT reviewing code. Override the "read + paste the
-code" rules below: do **NOT** read, paste, or `-f` any repo file, and do NOT emit a fresh review. The
-reviews are already in the instruction. Just run:
+If the caller's task says it is a **SYNTHESIS / RECONCILE** task — reviews pasted inline — then you are
+reconciling a panel, NOT writing a fresh review. Override the "read + paste the code" rules below: do
+**NOT** paste or `-f` whole files, and do NOT emit a from-scratch review. The reviews are already in the
+instruction. Pass the reconcile instruction through **verbatim** — if it says the backend MAY read the
+cited `file:line` spans under `--dir` to VERIFY contested findings, that is intended (the masked snapshot
+lives at `--dir`; `--agent plan` keeps the backend read-only). Just run:
 ```bash
 "${CLAUDE_PLUGIN_ROOT}/scripts/opencode-watch.sh" 150 600 -- opencode run "THE_RECONCILE_INSTRUCTION_WITH_THE_PASTED_REVIEWS" -m MODEL_ALIAS --agent plan --variant EFFORT --dir WORKDIR --format json < /dev/null
 ```
-(`--dir` is only the CWD — there is nothing to read there.) Relay the model's reconciled verdict
-verbatim. The verdict taxonomy (ok / truncated / reasoning-only / …) and the RELAY rule apply exactly
+(A masked snapshot may sit under `--dir` for targeted verification of cited spans; in a diff-mode review
+there is nothing there to read, which is fine.) Relay the model's reconciled verdict verbatim. The verdict taxonomy (ok / truncated / reasoning-only / …) and the RELAY rule apply exactly
 as for a review. Everything below is for REVIEW mode.
 
 ## CRITICAL: Invocation Rules

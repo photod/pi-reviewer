@@ -53,7 +53,7 @@ quota/auth (no retry, drop to the next option); an *absent* CLI just moves to th
 
 GLM-5.2 is one cheap model, so the tier scales the **reasoning-effort hint** (`--variant`), not the
 model — there is **no cost-gate** here. Caller MAY pass `tier=low|med|high`;
-treat it as a ceiling, else classify the task yourself. **Echo the route before delegating**, e.g.
+treat it as a ceiling, else classify the task yourself. (`max`/`ultra` also mean `high`, resolved by the `/pi-build` command before it reaches you.) **Echo the route before delegating**, e.g.
 `Routing: med (clearly-scoped bug fix) → <IMPL> @ --variant medium`.
 
 | Class you detect | Tier | `--variant` |
@@ -139,7 +139,7 @@ Max **2** fix rounds, then stop and report honestly.
 GLM wrote its own TDD tests; a **different model** adds the edge-case / failure-path tests GLM missed. It
 must NOT weaken or delete existing passing tests, and NOT touch product code.
 ```bash
-kimi --add-dir WORKDIR -p "INSTRUCTIONS" -m kimi-code/kimi-for-coding < /dev/null
+kimi -p "INSTRUCTIONS" -m kimi-code/kimi-for-coding < /dev/null   # no --add-dir flag on kimi-code; name TEST_DIR by ABSOLUTE path in INSTRUCTIONS
 ```
 - Prompt (verbatim): *"ONLY create or edit test files under <TEST_DIR>. Do NOT modify product code, and
   do NOT delete or weaken any existing passing test — only ADD missing tests for: empty, boundary,
