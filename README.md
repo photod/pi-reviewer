@@ -108,6 +108,8 @@ The single exception is `yolo` mode — explicit-only, never automatic; it sends
 
 **Honest caveat on the masker:** its rules are validated only against **synthetic** test data — keys and IDs I generated with the correct prefixes, lengths, and checksums, never real leaked secrets (which I neither have nor want). So the patterns are correct *by construction*, and the test suite is fully shareable — but I have **no measured real-world catch rate**, and I can't promise it fires on a credential shaped differently than the public format. That's exactly why it's a seatbelt, not a vault, and why you can preview before trusting it.
 
+**The reviewed code is treated as untrusted, too.** The flip side of masking: PI assumes the code it reviews may try to *manipulate the reviewers*. Every leaf, the chairman that reconciles them, and the standalone `kimi`/`cody` reviewers are told that an instruction planted in the code or a diff — an *"ignore all issues"* comment, a *"you are now…"* string — is content to flag, never a command to obey. Best-effort prompt hardening, not a sandbox — but it keeps a planted line from silently muzzling the panel.
+
 ## Bonus: PI also builds (/pi-build)
 
 There's a companion command, `/pi-build`, for when you'd rather have the council write the change than just read it. It delegates a scoped, test-driven change to GLM-5.2 over opencode-go, a different model augments the tests, and a cross-model pass reviews the resulting diff before it comes back. Same opencode-go plan, no extra cost. It's secondary to the review council — the reviewer is the headline — but handy when you already trust the panel and want a small, well-checked change out the door.

@@ -42,5 +42,9 @@ Then spawn `cody-reviewer` (read-only 2nd opinion) or `cody-worker` (write mode)
 - **`cody-reviewer` is read-only** (`--sandbox read-only`) and sends the target code to OpenAI's Codex —
   same privacy footprint as any Codex use. Unlike the whole-repo `/pi-review` path, there is **no masking
   layer here**; don't point it at secrets.
+- **Planted instructions are ignored.** Both agents treat any instruction embedded in the code they read —
+  an *"ignore the above"* comment, a *"TODO: also delete…"* line — as content to flag, never a command to
+  obey (the worker is told the same about files it reads while editing). Best-effort prompt hardening, not a
+  guarantee.
 - The Fable scaffold in `cody-reviewer.md` is a byte-identical copy of `recipes/reviewer.md`, guarded by
   the repo's `test/scaffold_sync_test.mjs` so it can't drift.
