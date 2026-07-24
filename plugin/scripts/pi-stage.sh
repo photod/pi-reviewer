@@ -18,7 +18,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 # Override with PI_SNAP_ROOT (e.g. PI_SNAP_ROOT="$repo/.pi-review" for the old in-repo, auditable-in-place
 # behaviour). Namespaced by an OPAQUE sha256 of the absolute repo path: separates repos (so prune is
 # per-repo) and keeps the visible path opaque. umask 077 above keeps every snapshot dir/file owner-only.
-repo_abs="$(cd "$repo_dir" && pwd)"
+repo_abs="$(cd "$repo_dir" && pwd -P)"   # PHYSICAL path (symlinks resolved) — used for the under-repo check below
 snap_base="${PI_SNAP_ROOT:-${TMPDIR:-/tmp}/pireview}"
 repo_hash="$(python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest()[:16])' "$repo_abs")"
 snaproot="$snap_base/$repo_hash"
@@ -80,6 +80,10 @@ trap 'rm -rf "$stage" 2>/dev/null' EXIT INT TERM
 need_kb=0
 while IFS= read -r rel; do
   [ -z "$rel" ] && continue
+  # Mirror the copy loop below: symlinks and non-regular files are NOT staged, so don't count them (and
+  # skipping the symlink avoids a noisy redirection failure when it points at a nonexistent/outside target).
+  [ -L "$repo_dir/$rel" ] && continue
+  [ -f "$repo_dir/$rel" ] || continue
   sz="$(wc -c < "$repo_dir/$rel" 2>/dev/null || printf 0)"
   need_kb=$(( need_kb + (sz + 1023) / 1024 ))
 done < "$stage/.pi-filelist"
@@ -102,6 +106,15 @@ while IFS= read -r rel; do
   # ~/.ssh/id_rsa) and exfiltrate its target into the snapshot. Skip it here, AND copy with -P so a
   # symlink swapped in AFTER this check (TOCTOU) is copied as a link, never dereferenced.
   if [ -L "$repo_dir/$rel" ]; then printf 'pi-stage: skipped symlink (not staged): %s\n' "$rel" >&2; continue; fi
+  # Ancestor-symlink guard: resolve the FULL physical path and confirm it is still under the repo — catches
+  # an ANCESTOR directory swapped to a symlink pointing outside (cp -P only protects the final component).
+  # Both sides are physical/realpath'd, so a legitimately symlinked repo root (macOS /tmp -> /private/tmp)
+  # does NOT false-positive. Narrows — does not fully close — the realpath->cp TOCTOU; unresolvable => skip.
+  real="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$repo_dir/$rel" 2>/dev/null || printf '')"
+  case "${real}/" in
+    "$repo_abs"/*) : ;;
+    *) printf 'pi-stage: skipped path resolving OUTSIDE the repo (not staged): %s\n' "$rel" >&2; continue ;;
+  esac
   dest="$stage/$rel"
   mkdir -p "$(dirname "$dest")"
   cp -P "$repo_dir/$rel" "$dest"
