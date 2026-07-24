@@ -1,7 +1,7 @@
 {
   "name": "pi",
   "description": "Poor Intelligence: a code-review council of cheap opencode-go models instead of one pricey genius. They fan out in parallel, a glm-5.2 chairman reconciles them into one verdict. Run /pi-review.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": {
     "name": "photod"
   },
