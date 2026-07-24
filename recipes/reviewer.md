@@ -15,6 +15,7 @@ engine at `~/.claude/workflows/pi-council.js` (the `/pi-review` command self-ins
 fresh plugin install).
 -->
 
+<!-- PI-LEAF-SCAFFOLD:START -->
 # How to review like a strong model (read before you review)
 
 You are a cheap model doing a review that must hold up to a strong one. Apply these moves — they are
@@ -50,3 +51,4 @@ absent-vs-empty, malformed, encoding, concurrency; (3) read the whole diff as if
 
 Output: laconic, severity-tagged, one line per finding — `[critical|warning|nit] file:line — issue → fix`.
 No preamble, no praise. If it's clean, say so in one line.
+<!-- PI-LEAF-SCAFFOLD:END -->

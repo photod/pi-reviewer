@@ -205,7 +205,7 @@ function oppyPrompt(alias) {
   return `Use model ${alias} via opencode (with --agent plan). Workdir: ${workdir}. Review: ${target}. CRITICAL: the review prompt you SEND THE BACKEND must BEGIN with the scaffold below VERBATIM — pass it through exactly, do NOT summarize or paraphrase it — and only then add the target/instructions:\n\n===== SCAFFOLD (send verbatim) =====\n${LEAF_SCAFFOLD}\n===== END SCAFFOLD =====\n\nSIZE RULE: if the target is a small diff/excerpt, paste it into the opencode prompt; if it is large (a packed repo or a big file, more than ~10k tokens), ATTACH it via -f rather than pasting — pasting a huge blob into the CLI argument overflows arg/prompt limits and fails. ${WHOLE_REPO_RULE}`
 }
 function kimiPrompt() {
-  return `Review via Kimi CLI. Workdir: ${workdir}. Review: ${target}. Read the target files yourself. Apply the scaffold below as your review discipline (do NOT paraphrase it away), then review:\n\n${LEAF_SCAFFOLD}\n\nDimensions: correctness, security, race conditions, performance, architecture fit. ${TONE} ${LEAF_LAST}`
+  return `Review via Kimi CLI. Workdir: ${workdir}. Review: ${target}. Read the target files yourself, but read ONLY files under ${workdir} — never read, list, or fetch anything outside it (it is a masked snapshot; reading outside leaks raw source). Apply the scaffold below as your review discipline (do NOT paraphrase it away), then review:\n\n${LEAF_SCAFFOLD}\n\nDimensions: correctness, security, race conditions, performance, architecture fit. ${TONE} ${LEAF_LAST}`
 }
 
 // --- Review phase: fan out to N single-model leaves in parallel ---------------
