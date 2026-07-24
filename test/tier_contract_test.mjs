@@ -13,6 +13,7 @@ const check = (name, condition) => {
 }
 
 check('review command exposes exact tiers', review.includes('[low|med(default)|high]'))
+check('engine self-install refreshes on upgrade (not copy-if-absent)', review.includes('cmp -s') && review.includes('refresh it whenever'))
 check('build command exposes exact tiers', build.includes('[low|med(default)|high]'))
 check('workflow defaults to med', workflow.includes("A.tier || 'med'"))
 check('workflow low panel preserved', workflow.includes("low:  { families: ['minimax', 'deepseek', 'mimo']"))

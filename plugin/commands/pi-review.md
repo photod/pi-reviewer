@@ -50,9 +50,14 @@ Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by de
    (If opencode IS present but a leaf later errors on auth/plan, that surfaces as an `UNAVAILABLE` leaf
    with the real error — a different problem, not this preflight.)
 
-1. **Ensure the engine is installed.** If `~/.claude/workflows/pi-council.js` does NOT exist but
-   `${CLAUDE_PLUGIN_ROOT}/workflows/pi-council.js` does (fresh plugin install), copy the latter to the
-   former (`mkdir -p ~/.claude/workflows` first). This self-installs the workflow — there is NO manual step.
+1. **Ensure the engine is installed AND up to date.** The engine runs from
+   `~/.claude/workflows/pi-council.js`. Install it on first run and **refresh it whenever the plugin's
+   bundled copy differs** — otherwise a `/plugin update` never takes effect and you stay pinned to the
+   version you first installed (copy-if-absent was the old, un-upgradable behaviour). Run:
+   `mkdir -p ~/.claude/workflows && (cmp -s "${CLAUDE_PLUGIN_ROOT}/workflows/pi-council.js" ~/.claude/workflows/pi-council.js || cp -f "${CLAUDE_PLUGIN_ROOT}/workflows/pi-council.js" ~/.claude/workflows/pi-council.js)`
+   — `cmp` is silent when they already match (no copy); on any difference (an upgrade) or a missing file
+   it copies the plugin's canonical copy over. There is NO manual step. Never hand-edit the installed
+   copy — the plugin dir is the source of truth and the installed file is overwritten on any version change.
 1b. **First run ever — advertise the extras ONCE.** If `~/.claude/.pi-welcomed` is absent, show the
    operator this one screen (then create that marker file and never repeat it):
    > **PI, first run — what's in the box:**

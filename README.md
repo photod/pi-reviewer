@@ -23,7 +23,7 @@ This is a front-end. The reviewing happens through the opencode CLI on an openco
 /plugin install pi@pi-reviewer
 ```
 
-Restart the session so the command registers, then run `/pi-review med <target>`. It installs its own review engine the first time you use it.
+Restart the session so the command registers, then run `/pi-review med <target>`. It installs its own review engine on first use — and refreshes it automatically whenever you `/plugin update` (it re-copies the bundled engine whenever the installed one differs, so upgrades actually take effect).
 
 ### Why not Codex
 
