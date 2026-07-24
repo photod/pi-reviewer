@@ -13,7 +13,7 @@ pass() { printf 'PASS: %s\n' "$1"; PASS=$((PASS + 1)); }
 fail() { printf 'FAIL: %s\n' "$1"; FAIL=$((FAIL + 1)); }
 
 TMP="$(mktemp -d)"
-cleanup() { rm -rf "$TMP"; }
+cleanup() { rm -rf "$TMP" "${SNAP_CREATED:-}"; }
 trap cleanup EXIT
 
 git -C "$TMP" init -q
@@ -29,8 +29,15 @@ git -C "$TMP" add -A
 git -C "$TMP" -c user.email=t@t.test -c user.name=tester commit -qm init
 
 stage="$("$STAGE" "$TMP")"
+SNAP_CREATED="$(dirname "$stage")"   # per-repo snapshot dir to clean up (default lives OUTSIDE the repo)
 
 [ -d "$stage" ] && pass "staging created a snapshot dir" || fail "no snapshot dir"
+case "$stage" in */pireview/*) pass "default snapshot is OUT of the repo (…/pireview/…)" ;; *) fail "default snapshot not under pireview: $stage" ;; esac
+case "$stage" in "$TMP"/*) fail "snapshot leaked INTO the repo tree" ;; *) pass "snapshot path is outside the repo (no home/username leak)" ;; esac
+
+# PI_SNAP_ROOT relocates the snapshot root (opt-in in-repo / audit mode).
+stage2="$(PI_SNAP_ROOT="$TMP/relocated" "$STAGE" "$TMP")"
+case "$stage2" in "$TMP/relocated/"*) pass "PI_SNAP_ROOT override honored" ;; *) fail "PI_SNAP_ROOT ignored: $stage2" ;; esac
 [ ! -e "$stage/link_out" ] && pass "outside-pointing symlink not staged" || fail "symlink was staged"
 [ -z "$(find "$stage" -type l)" ] && pass "snapshot contains no symlinks (TOCTOU backstop)" || fail "snapshot has a symlink"
 

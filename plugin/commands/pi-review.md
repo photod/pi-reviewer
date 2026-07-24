@@ -104,11 +104,12 @@ Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by de
      `fileList` resolves inside it). `pi-stage.sh` fails CLOSED — a non-zero exit means masking failed, so
      ABORT the run rather than send raw code. This is **best-effort** masking of common high-value keys,
      NOT a guarantee. `pack` relies on repomix's own `secretlint`.
-     **Once per repo, after masking succeeds:** if `"<workdir>/.pi-review/.pi-hinted"` is absent, tell the
-     operator: **PI staged a redacted copy in `.pi-review/snap-.../` before sending code; nothing raw left
-     the repo for this review. Masking stays on at every scope (explicit `mode=yolo` sends raw); ask in
-     chat "what would PI mask in `<path>`?" to preview any file.** Then create that marker file. If it
-     exists, stay silent.
+     **Once per repo, after masking succeeds:** if `"<workdir>/.git/pi-review-hinted"` is absent (a marker
+     inside `.git`, so it is never committed), tell the operator: **PI staged a redacted copy OUTSIDE your
+     repo (default `${TMPDIR:-/tmp}/pireview/<hash>/`, owner-only — set `PI_SNAP_ROOT` to relocate, e.g. to
+     `.pi-review/` in the repo for in-place auditing) before sending code; nothing raw was sent. Masking
+     stays on at every scope (explicit `mode=yolo` sends raw); ask in chat "what would PI mask in
+     `<path>`?" to preview any file.** Then create that marker file. If it exists, stay silent.
 3. **Run it** by scriptPath (never by name — name-invocation can hit a stale registration):
    ```
    Workflow({

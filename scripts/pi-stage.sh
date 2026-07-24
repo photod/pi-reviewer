@@ -12,12 +12,21 @@ repo_dir="$1"
 subpath="${2:-}"
 here="$(cd "$(dirname "$0")" && pwd)"
 
-# CONTRACT: every staged review creates a snapshot dir INSIDE the repo (auditable + kept), under a
-# self-ignored .pi-review/ — so you can inspect exactly what redacted content was sent to the models.
-# Costs disk + a copy pass; that's the price of the extra security layer. Snapshots are ms-suffixed.
-snaproot="$repo_dir/.pi-review"
+# Snapshot root — where the MASKED copy is staged for reviewers to read. DEFAULT: an owner-only temp dir
+# OUTSIDE the repo (${TMPDIR:-/tmp}/pireview), so the workdir path the models see carries NO username /
+# home path — an in-repo "/Users/<you>/…/.pi-review/…" path would otherwise leak into every leaf prompt.
+# Override with PI_SNAP_ROOT (e.g. PI_SNAP_ROOT="$repo/.pi-review" for the old in-repo, auditable-in-place
+# behaviour). Namespaced by an OPAQUE sha256 of the absolute repo path: separates repos (so prune is
+# per-repo) and keeps the visible path opaque. umask 077 above keeps every snapshot dir/file owner-only.
+repo_abs="$(cd "$repo_dir" && pwd)"
+snap_base="${PI_SNAP_ROOT:-${TMPDIR:-/tmp}/pireview}"
+repo_hash="$(python3 -c 'import hashlib,sys; print(hashlib.sha256(sys.argv[1].encode()).hexdigest()[:16])' "$repo_abs")"
+snaproot="$snap_base/$repo_hash"
 mkdir -p "$snaproot"
-printf '*\n' > "$snaproot/.gitignore"   # self-ignore: snapshots are never committed, nor re-reviewed
+# Self-ignore ONLY when the snapshot root lives inside the repo (opt-in in-repo mode) so it's never committed.
+case "$snaproot/" in
+  "$repo_abs"/*) printf '*\n' > "$snap_base/.gitignore" 2>/dev/null || true ;;
+esac
 
 # Keep snapshots bounded: discard anything outside the newest N, plus anything older than D days.
 # Snapshot names carry the creation timestamp, so reverse lexical order is newest-first. `nullglob`
