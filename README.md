@@ -68,6 +68,14 @@ separate subscription. So the Kimi leaf (it joins at `med`/`high`) can be served
 
 No other model has a mode because no other model has a second backend — there'd be nothing to choose.
 
+> 🎁 **A bit of fun — a clearly-labelled referral.** `kimiMode: "cli"` means your own Kimi account, and
+> honestly its **K3** model is a treat: 1M-context, and it accompanies Opus and Fable wonderfully whether
+> it's chairing or on the panel. If you're signing up anyway, here's my Kimi referral (invitation code
+> **`PYDR92`**): https://kimi-bot.com/activities/viral-referral/share?scenario=invite&from=share_poster&invitation_code=PYDR92
+> — yes, it's a referral: it kicks a little something my way, and their promo might toss you (or me) a
+> prize, might not — bit of a lottery ;-). Use it if that sits fine, or just find Kimi on your own and
+> skip it. No pressure either way.
+
 Upgrading from 0.1.x: tier names changed by meaning-preserving position — old `med` is now `low`, old
 `high` is now `med`, and old `ultra` is now `high`. Update a saved `"tier": "high"` to `"tier": "med"`
 if you want the previous default three-model panel rather than the new full-panel `high`.
