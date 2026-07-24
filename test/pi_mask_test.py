@@ -47,7 +47,7 @@ default = pi_mask.default_config()
 check("default groups are exactly the documented lean set", default["groups"] == {
     "llm-keys": True, "cloud-keys": True, "regional-cloud": False,
     "git-tokens": True, "private-keys": True, "db-uris": True,
-    "payments": True, "monitoring": False, "messaging": False,
+    "payments": True, "monitoring": False, "messaging": True,
     "registrars-hosting": False, "regional-services": False,
     "generic-entropy": False,
 })
@@ -73,9 +73,16 @@ check("kimi-coding redacted", "REDACTED:kimi-coding" in mask("sk-kimi-" + "y" * 
 check("stripe live redacted", "REDACTED:stripe" in mask("sk_live_" + "z" * 30))
 # v2 documents generic-entropy as opt-in, so this no longer redacts by default.
 check("mimo generic disabled by default", "REDACTED" not in mask("MIMO_API_KEY=tp-seq7vq2Xk9Lm3Qp8Rt5Zw1Bd4Nf6"))
-check("sendgrid disabled by default", "REDACTED" not in mask("SG." + "a" * 60))
-check("npm disabled by default", "REDACTED" not in mask("npm_" + "a" * 36))
-check("slack disabled by default", "REDACTED" not in mask("xoxb-1234567890-abcdefghijklmno"))
+check("sendgrid redacted by default (messaging now on)", "REDACTED:sendgrid" in mask("SG." + "A" * 22 + "." + "b" * 43))
+check("npm redacted by default (messaging now on)", "REDACTED:npm" in mask("npm_" + "a" * 36))
+check("slack redacted by default (messaging now on)", "REDACTED:slack-bot" in mask("xoxb-" + "1" * 11 + "-" + "2" * 11 + "-" + "a" * 28))
+
+# cloud-keys: AWS secret access key (40-char base64, no prefix) — keyword-gated so a bare 40-char blob isn't touched.
+_cloud = active_groups("cloud-keys")
+_awssec = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"   # canonical AWS example secret, 40 chars
+check("AWS secret key with keyword redacted", "REDACTED:aws-secret" in mask("aws_secret_access_key = " + _awssec, _cloud))
+check("AWS secret needs the keyword (bare 40-char untouched)", "REDACTED" not in mask("blob = " + _awssec, _cloud))
+check("AWS AKID still redacted alongside", "REDACTED:aws-akid" in mask("AKIAIOSFODNN7EXAMPLE", _cloud))
 
 # --- PHASE 2 PREFIX GROUPS: opt-in groups scan only when explicitly active ---
 regional = active_groups("regional-cloud")

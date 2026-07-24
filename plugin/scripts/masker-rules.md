@@ -12,7 +12,7 @@ Precision-first: redacting real code is worse than missing an exotic key.
   "groups": {
     "llm-keys": true, "cloud-keys": true, "regional-cloud": false, "git-tokens": true,
     "private-keys": true, "db-uris": true, "payments": true, "monitoring": false,
-    "messaging": false, "registrars-hosting": false, "regional-services": false, "generic-entropy": false
+    "messaging": true, "registrars-hosting": false, "regional-services": false, "generic-entropy": false
   },
   "national_ids": { "US": false, "CA": false, "GB": false, "DE": false, "FR": false, "ES": false,
     "IT": false, "PL": false, "NL": false, "EU-IBAN": false, "RU": false, "KZ": false, "IN": false,
@@ -20,9 +20,9 @@ Precision-first: redacting real code is worse than missing an exotic key.
     "CL": false, "MX": false, "CO": false, "PE": false, "UY": false, "VE": false }
 }
 ```
-**Default (no file): only cheap+high-precision+low-FP groups ON** — `llm-keys, cloud-keys, git-tokens,
-private-keys, db-uris, payments`. Everything else (regional, monitoring, messaging, registrars, national_ids,
-generic-entropy) **OFF** — they're the CPU-heavy / higher-FP / opt-in ones. Engine filters rules by the
+**Default (no file): cheap+high-precision+low-FP groups ON** — `llm-keys, cloud-keys, git-tokens,
+private-keys, db-uris, payments, messaging` (messaging is prefix-based and low-FP). Everything else
+(regional, monitoring, registrars, national_ids, generic-entropy) **OFF** — CPU-heavy / higher-FP / opt-in. Engine filters rules by the
 enabled set BEFORE scanning (a disabled group costs nothing).
 
 Rule tagging: each rule carries `group` and (national IDs) `country`; the engine builds the active rule
@@ -49,6 +49,7 @@ NOTE: MiMo `tp-` and bare Zhipu `32hex.16` are NOT prefix rules (2-char/low-prec
 | name | regex | notes |
 |---|---|---|
 | aws-akid | `((?:AKIA\|ASIA\|ABIA\|ACCA\|A3T[A-Z0-9]))([A-Z2-7]{16})` | |
+| aws-secret | `([A-Za-z0-9/+]{40})` (40-char base64, no prefix) | keyword-gated (line): `aws_secret_access_key`/`secret_access_key`/`aws_secret` |
 | gcp-oauth | `(GOCSPX-)([A-Za-z0-9_-]{28})` | |
 | gcp-privkey | (see private-keys block: `"private_key"` JSON + PEM) | |
 | azure-storage | `(AccountKey=)([A-Za-z0-9+/]{86}==)` | keyword-anchored |
@@ -115,7 +116,7 @@ Keyword-anchored: Klarna, Wise, Revolut, GoCardless, PayPal, Coinbase, Adyen (`A
 | mailchimp | `([0-9a-f]{32})(-us\d{1,2})` |
 | circleci | keyword-gate `circle_token` + `[a-f0-9]{40}` |
 
-## GROUP: messaging (default OFF)
+## GROUP: messaging (default ON)
 | name | regex |
 |---|---|
 | twilio-sid | `(AC)([0-9a-fA-F]{32})` | keyword-gate `twilio`/`sid` (collides w/ generic hex) |

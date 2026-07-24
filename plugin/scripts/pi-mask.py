@@ -16,7 +16,7 @@ from datetime import date
 DEFAULT_GROUPS = {
     "llm-keys": True, "cloud-keys": True, "regional-cloud": False,
     "git-tokens": True, "private-keys": True, "db-uris": True,
-    "payments": True, "monitoring": False, "messaging": False,
+    "payments": True, "monitoring": False, "messaging": True,
     "registrars-hosting": False, "regional-services": False,
     "generic-entropy": False,
 }
@@ -511,6 +511,9 @@ RULES = [
     ("replicate", "llm-keys", None, _rx(r"(r8_)([A-Za-z0-9]{37})"), "prefix", None),
     # cloud-keys
     ("aws-akid", "cloud-keys", None, _rx(r"((?:AKIA|ASIA|ABIA|ACCA|A3T[A-Z0-9]))([A-Z2-7]{16})"), "prefix", None),
+    # AWS secret access key: 40-char base64, NO distinctive prefix — keyword-gated (line-scoped) so a bare
+    # 40-char blob is never touched. Only fires next to aws_secret_access_key / secret_access_key / aws_secret.
+    ("aws-secret", "cloud-keys", None, _rx(r"(?<![A-Za-z0-9/+])()([A-Za-z0-9/+]{40})(?![A-Za-z0-9/+])"), "prefix", _gate(r"(?:aws_?secret_?access_?key|secret_?access_?key|aws_?secret)")),
     ("gcp-oauth", "cloud-keys", None, _rx(r"(GOCSPX-)([A-Za-z0-9_-]{28})"), "prefix", None),
     ("azure-storage", "cloud-keys", None, _rx(r"(AccountKey=)([A-Za-z0-9+/]{86}==)"), "prefix", None),
     # regional-cloud
