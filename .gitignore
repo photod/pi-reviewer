@@ -3,6 +3,10 @@
 # won't match the symlink itself (a trailing slash only matches a real directory).
 docs
 
+# Session worklog — dev-only, purged from public history (2026-07-25). Kept at repo root
+# (not under docs/) so the `./handoff.md` session-start convention still finds it locally.
+handoff.md
+
 # OS / editor cruft
 .DS_Store
 **/.DS_Store
