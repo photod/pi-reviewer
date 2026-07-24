@@ -37,6 +37,11 @@ equal each other; only ≠ `<IMPL>` matters. Any of the 5 may implement; resolve
 Native Kimi CLI (Step 4's first-choice augmenter when present): `-m kimi-code/kimi-for-coding` — a
 separate subscription/CLI from opencode-go; its opencode-go equivalent is `opencode-go/kimi-k2.7-code`.
 
+> **⚠️ Substitute placeholders BEFORE every call.** `<IMPL>` / `<AUGMENTER>` / `<REVIEWER>` are
+> placeholders — resolve each to its full `opencode-go/<alias>` (or `kimi-code/<alias>`) from the table
+> above and pass THAT to `-m`. Passing a **literal** `-m <IMPL>` to opencode is an instant "unknown
+> model" failure — the single most common way a leg dies before it even starts.
+
 ## ⛔ Relay discipline — two tiers
 
 **Sacred (never substitute): GLM writes the product code.** You do not hand-edit product files; anything
@@ -151,6 +156,11 @@ kimi -p "INSTRUCTIONS" -m kimi-code/kimi-for-coding < /dev/null   # no --add-dir
   (labeled `test augmentation: Sonnet fallback`).
 - Then **re-run the acceptance command** — new tests must pass, or reveal a real bug → one GLM fix round.
 - After this leg, **re-diff the test files** (Step 3.3 again) — a helper can weaken tests too.
+- **Re-check the FULL change set, not just tests.** The augmenter has write tools and opencode has no
+  hard sandbox, so run `git -C WORKDIR status --short` + `git -C WORKDIR diff --stat` AGAIN and confirm
+  the augment leg touched ONLY files under `<TEST_DIR>`. Any non-test (product-code) file it changed is a
+  scope violation → report it **loudly** so the orchestrator can review/revert; do NOT silently accept it
+  or hand-fix it yourself. (Step 3.1 does this for GLM's implement leg; the augmenter needs the same gate.)
 
 ## Step 5 — Cross-model diff review (read-only, REPORT-ONLY, no loop back)
 

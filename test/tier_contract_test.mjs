@@ -25,4 +25,7 @@ check('builder provider mapping is coherent',
   worker.includes('| **low** | `low` |') &&
   worker.includes('| **med** | `medium` |') &&
   worker.includes('| **high** | `high`'))
+check('glm-worker model aliases stay in sync with the engine registry',
+  worker.includes('opencode-go/glm-5.2') && worker.includes('opencode-go/qwen3.7-max') &&
+  workflow.includes("glm:      'opencode-go/glm-5.2'") && workflow.includes("qwen:     'opencode-go/qwen3.7-max'"))
 process.exit(ok ? 0 : 1)
