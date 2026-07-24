@@ -31,20 +31,21 @@ def default_config():
     return {"groups": dict(DEFAULT_GROUPS), "national_ids": {c: False for c in NATIONAL_ID_COUNTRIES}}
 
 
-def _repo_root():
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+def load_config(config_path=None):
+    """Load the masking config from a TRUSTED source only.
 
-
-def load_config(config_path=None, cwd=None):
-    """Load JSON config; search explicit path, cwd, then repository root."""
-    cwd = os.path.abspath(cwd or os.getcwd())
+    Security: the config selects which rule GROUPS are active, so a config that disables groups WEAKENS
+    masking. We therefore NEVER auto-discover it from the current directory or the reviewed repo — either
+    could be untrusted or hold a stray/hostile ``pi-mask.config.json`` that silently turns masking off.
+    Resolution order: an explicit ``--config`` path, else a trusted operator location under the Claude
+    config dir (``$CLAUDE_CONFIG_DIR`` or ``~/.claude``), else the built-in safe defaults. Unknown keys
+    are rejected (fail-closed), so a typo cannot silently leave masking at some unintended setting.
+    """
     if config_path:
         paths = [config_path]
     else:
-        paths = [os.path.join(cwd, "pi-mask.config.json")]
-        root_path = os.path.join(_repo_root(), "pi-mask.config.json")
-        if os.path.abspath(paths[0]) != root_path:
-            paths.append(root_path)
+        home = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+        paths = [os.path.join(home, "pi-mask.config.json")]
     chosen = next((path for path in paths if os.path.isfile(path)), None)
     config = default_config()
     if chosen is None:
@@ -55,15 +56,20 @@ def load_config(config_path=None, cwd=None):
         supplied = json.load(f)
     if not isinstance(supplied, dict):
         raise ValueError("config must be a JSON object")
+    unknown_top = set(supplied) - {"groups", "national_ids"}
+    if unknown_top:
+        raise ValueError("unknown config key(s): " + ", ".join(sorted(unknown_top)))
     for section in ("groups", "national_ids"):
         values = supplied.get(section, {})
         if not isinstance(values, dict):
             raise ValueError(section + " must be a JSON object")
+        unknown = set(values) - set(config[section])
+        if unknown:
+            raise ValueError("unknown " + section + " name(s): " + ", ".join(sorted(unknown)))
         for name, enabled in values.items():
-            if name in config[section]:
-                if not isinstance(enabled, bool):
-                    raise ValueError(section + "." + name + " must be true or false")
-                config[section][name] = enabled
+            if not isinstance(enabled, bool):
+                raise ValueError(section + "." + name + " must be true or false")
+            config[section][name] = enabled
     return config
 
 

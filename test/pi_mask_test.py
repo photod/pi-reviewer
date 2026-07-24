@@ -483,6 +483,13 @@ with tempfile.TemporaryDirectory() as tmp:
     )
     check("config enables BR national IDs", result.returncode == 0 and "REDACTED:cpf" in result.stdout)
 
+# unknown config keys are REJECTED (fail-closed), not silently ignored — a typo must not leave masking mis-set.
+with tempfile.TemporaryDirectory() as _tmp:
+    _bad = pathlib.Path(_tmp) / "bad.json"
+    _bad.write_text('{"groups": {"llm-key": false}}', encoding="utf-8")   # typo: llm-key vs llm-keys
+    _r = subprocess.run([sys.executable, str(_p), "--config", str(_bad), "-"], input="x", capture_output=True, text=True)
+    check("unknown config group key rejected (fail-closed)", _r.returncode == 1 and "unknown" in _r.stderr.lower())
+
 with tempfile.TemporaryDirectory() as tmp:
     root = pathlib.Path(tmp)
     sample = root / "private-keys.txt"
