@@ -25,7 +25,7 @@ This is a front-end. The reviewing happens through the opencode CLI on an openco
 
 Restart the session so the command registers, then run `/pi-review med <target>`. It installs its own review engine on first use — and refreshes it automatically whenever you `/plugin update` (it re-copies the bundled engine whenever the installed one differs, so upgrades actually take effect).
 
-**If every leaf comes back `UNAVAILABLE` instantly** (before any model is contacted), it's the agent namespace, not your plan. Installed as a plugin, PI's reviewers register as `pi:oppy-reviewer`; dropped into `~/.claude/agents/` by hand, they register bare. `/pi-review` picks the right one and the engine prints it in its first log line (`agents=pi:`). If it guessed wrong, re-run with `agentPrefix=""` (bare) or `agentPrefix=pi` (namespaced).
+**If every leaf comes back `UNAVAILABLE` instantly** (before any model is contacted), it's the agent namespace, not your plan. Installed as a plugin, PI's reviewers register as `pi:oppy-reviewer`; dropped into `~/.claude/agents/` by hand, they register bare. `/pi-review` picks the right one and the engine prints it in its first log line (`agents=pi:`). If it guessed wrong, re-run with `agentPrefix=bare` or `agentPrefix=pi`.
 
 ### Why not Codex
 

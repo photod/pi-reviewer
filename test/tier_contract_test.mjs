@@ -58,8 +58,14 @@ if (src) {
     normPrefix(undefined) === `${manifest.name}:` && normPrefix(null) === `${manifest.name}:`)
   check('normPrefix accepts a name with or without a trailing colon (never doubles it)',
     normPrefix('pi') === 'pi:' && normPrefix('pi:') === 'pi:' && normPrefix(' pi ') === 'pi:')
-  check('normPrefix maps the empty string to BARE agent names (manual install)',
+  check('normPrefix maps the bare sentinels to BARE agent names (manual install)',
+    normPrefix('bare') === '' && normPrefix('none') === '' && normPrefix('BARE') === '' &&
     normPrefix('') === '' && normPrefix('  ') === '' && normPrefix(':') === '')
+  // `agentPrefix=""` in $ARGUMENTS reaches the engine as the two-char string `""` — it must NOT
+  // become the prefix `"":` (that is the very bug agentPrefix exists to fix, re-entering via the
+  // escape hatch). Same for a quoted name.
+  check('normPrefix survives quotes carried in from $ARGUMENTS',
+    normPrefix('""') === '' && normPrefix("''") === '' && normPrefix('"pi"') === 'pi:')
 }
 check('review command tells the host to resolve the agent namespace',
   review.includes('agentPrefix') && review.includes('pi:oppy-reviewer'))

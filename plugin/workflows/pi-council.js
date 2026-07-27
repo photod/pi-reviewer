@@ -112,10 +112,14 @@ if (kimiMode !== 'opencode' && kimiMode !== 'cli' && kimiMode !== 'off') throw n
 // zero-config is correct out of the box. A wrong prefix stays LOUD (every leaf UNAVAILABLE) — this
 // is deliberately NOT probed-and-retried: a silent fallback to whatever else answers would produce a
 // verdict from no council while the coverage footer still read "N/N leaves OK".
-// Accepts 'pi', 'pi:', '' and undefined (→ 'pi:'); trailing colons are normalized, never doubled.
+// Accepts 'pi', 'pi:', ' pi ' and undefined (→ 'pi:'); trailing colons are normalized, never doubled.
+// BARE is spelled with the WORD 'bare' (or 'none', or an empty value) — never an empty quoted string:
+// `agentPrefix=""` parsed out of $ARGUMENTS arrives here as the two-character string `""`, which would
+// otherwise become the prefix `"":` and break every leaf exactly like the bug this arg exists to fix.
+// So: strip surrounding quotes, and treat the bare-sentinels as ''.
 function normPrefix(p) {
-  const s = String(p == null ? 'pi' : p).trim().replace(/:+$/, '')
-  return s ? `${s}:` : ''
+  const s = String(p == null ? 'pi' : p).trim().replace(/^["']+|["']+$/g, '').trim().replace(/:+$/, '')
+  return (!s || s.toLowerCase() === 'bare' || s.toLowerCase() === 'none') ? '' : `${s}:`
 }
 const AGENT_PREFIX = normPrefix(A.agentPrefix)
 const OPPY_AGENT = `${AGENT_PREFIX}oppy-reviewer`

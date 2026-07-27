@@ -19,7 +19,7 @@ Reconfiguration lives in a config the command reads — NOT in per-call args (th
 2. **Per-call overrides:** parse `$ARGUMENTS` and let them override the config for THIS run only — a tier
    keyword (`low`/`med`/`high`), a target (path/glob/`diff`/`branch`; default `git diff HEAD`), a chairman
    (`opus`/`sonnet`/an `opencode-go/<alias>`), a `kimiMode` (`opencode`/`cli`/`off`), an explicit
-   `agentPrefix=<pi|"">` (escape hatch for step 3's namespace resolution — see there), and any number of
+   `agentPrefix=<pi|bare>` (escape hatch for step 3's namespace resolution — see there), and any number of
    on-demand review **lenses** via `--lens <name>` or `lens=<name>` (repeatable, e.g. `--lens security
    --lens ux`). Collect them into a `lenses` array passed in the Workflow args (below); the engine adds
    them on top of the always-on default lenses and ignores unknown names with a note. Valid on-demand
@@ -116,7 +116,7 @@ Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by de
    manual install (agent `.md` files in `~/.claude/agents/`) registers them **bare** — and the engine
    cannot see the agent registry, only you can. So look at YOUR available agent types and set
    `agentPrefix`: `"pi"` if `pi:oppy-reviewer` is listed (the normal plugin install — this is also the
-   default if you omit the arg), `""` if only a bare `oppy-reviewer` is listed. Get this wrong and every
+   default if you omit the arg), `"bare"` if only an unprefixed `oppy-reviewer` is listed. Get this wrong and every
    leaf comes back `UNAVAILABLE` before a backend is ever contacted — the engine reports the namespace it
    used in its first log line (`agents=pi:`), so check that line first if the whole panel is UNAVAILABLE.
    An explicit `agentPrefix=…` in `$ARGUMENTS` overrides this detection (operator escape hatch).
