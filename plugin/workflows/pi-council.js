@@ -102,7 +102,26 @@ if (!chairmanModel) {
 const KIMI_OPENCODE_ALIAS = MODELS.kimi
 const kimiMode = String(A.kimiMode || 'opencode').toLowerCase()
 if (kimiMode !== 'opencode' && kimiMode !== 'cli' && kimiMode !== 'off') throw new Error(`invalid kimiMode '${A.kimiMode}' — use 'opencode', 'cli', or 'off'`)
-log(`meta-review tier=${tierName} models=${tierModels.length}${tier.kimi && kimiMode !== 'off' ? '+kimi(' + kimiMode + ')' : ''} chairman=${chairmanModel} synth-effort=${tier.effort} workdir=${workdir}`)
+
+// --- Agent-type namespace (args.agentPrefix) ---------------------------------
+// Claude registers a PLUGIN's agents NAMESPACED as `<plugin-name>:<agent>` — this plugin is named
+// `pi`, so its reviewers register as `pi:oppy-reviewer` / `pi:kimi-reviewer`. A MANUAL install (the
+// agent .md files dropped into ~/.claude/agents/) registers them BARE. A Workflow script cannot see
+// the agent registry, so the CALLER decides: /pi-review passes `agentPrefix` from the agent list it
+// can actually see ('pi' → namespaced, '' → bare). Default 'pi' = the documented plugin install, so
+// zero-config is correct out of the box. A wrong prefix stays LOUD (every leaf UNAVAILABLE) — this
+// is deliberately NOT probed-and-retried: a silent fallback to whatever else answers would produce a
+// verdict from no council while the coverage footer still read "N/N leaves OK".
+// Accepts 'pi', 'pi:', '' and undefined (→ 'pi:'); trailing colons are normalized, never doubled.
+function normPrefix(p) {
+  const s = String(p == null ? 'pi' : p).trim().replace(/:+$/, '')
+  return s ? `${s}:` : ''
+}
+const AGENT_PREFIX = normPrefix(A.agentPrefix)
+const OPPY_AGENT = `${AGENT_PREFIX}oppy-reviewer`
+const KIMI_AGENT = `${AGENT_PREFIX}kimi-reviewer`
+
+log(`meta-review tier=${tierName} models=${tierModels.length}${tier.kimi && kimiMode !== 'off' ? '+kimi(' + kimiMode + ')' : ''} chairman=${chairmanModel} synth-effort=${tier.effort} workdir=${workdir} agents=${AGENT_PREFIX || '<bare>'}`)
 
 const TONE = 'Be laconic and brutal. Findings only — NO preamble, NO restating the task or the code, NO summary paragraph, NO praise unless load-bearing. CRITICAL: do NOT think out loud, narrate your analysis, or emit chain-of-thought — output ONLY the final severity-tagged bullet list, nothing before it. (Streaming your reasoning wastes your output budget and gets you cut off before the answer — on a large input this is the #1 cause of a truncated/empty response.) One line per finding: [critical|warning|nit] file:line — issue → fix. If clean, one line saying so.'
 
@@ -219,16 +238,16 @@ const mkThunk = (label, spawn) => () =>
     .catch(e => ({ label, review: `- **Status**: UNAVAILABLE — agent error: ${String((e && e.message) || e)}` }))
 
 const reviewThunks = tierModels.map(alias =>
-  mkThunk(labelOf(alias), () => agent(oppyPrompt(alias), { agentType: 'oppy-reviewer', label: `oppy:${labelOf(alias)}`, phase: 'Review' }))
+  mkThunk(labelOf(alias), () => agent(oppyPrompt(alias), { agentType: OPPY_AGENT, label: `oppy:${labelOf(alias)}`, phase: 'Review' }))
 )
 // Kimi leaf — only in kimi-tiers (med/high); backend chosen by kimiMode (opencode/cli/off, above).
 // A missing or failing kimi becomes an UNAVAILABLE record (mkThunk .catch), so the panel is never
 // blocked on it.
 if (tier.kimi && kimiMode !== 'off') {
   if (kimiMode === 'cli') {
-    reviewThunks.push(mkThunk('kimi-cli', () => agent(kimiPrompt(), { agentType: 'kimi-reviewer', label: 'kimi-cli', phase: 'Review' })))
+    reviewThunks.push(mkThunk('kimi-cli', () => agent(kimiPrompt(), { agentType: KIMI_AGENT, label: 'kimi-cli', phase: 'Review' })))
   } else {
-    reviewThunks.push(mkThunk('kimi', () => agent(oppyPrompt(KIMI_OPENCODE_ALIAS), { agentType: 'oppy-reviewer', label: 'oppy:kimi', phase: 'Review' })))
+    reviewThunks.push(mkThunk('kimi', () => agent(oppyPrompt(KIMI_OPENCODE_ALIAS), { agentType: OPPY_AGENT, label: 'oppy:kimi', phase: 'Review' })))
   }
 }
 // filter(Boolean) drops nulls from parallel(); every entry now carries a status line (mkThunk
@@ -264,7 +283,7 @@ if (chairmanModel === 'opus' || chairmanModel === 'sonnet') {
   // Cheap chairman: reconcile through an opencode model (via oppy-reviewer, framed as a
   // RECONCILE task — the reviews are pasted inline, so there are no source files to read).
   const reconcilePrompt = `Use model ${chairmanModel} via opencode (with --agent plan, and --variant ${variantOf(tier.effort)} for reconciliation effort). Workdir: ${workdir}. This is a SYNTHESIS + VERIFY task, NOT a fresh code review: reconcile from the reviews pasted below, and you MAY read the cited file:line spans under --dir (a read-only copy of the SAME input the leaves reviewed, at ${workdir}) to VERIFY contested / lone-wolf / high-severity findings — confirm or kill each against the actual code (fluency is not evidence). Do NOT write a from-scratch review, do NOT re-review clean areas, do NOT broaden scope. The instruction below BEGINS with a chairman scaffold you must send to the backend VERBATIM (do not summarize it). Relay the model's reconciled verdict verbatim.\n\n${synthesisPrompt}`
-  synthesis = await agent(reconcilePrompt, { agentType: 'oppy-reviewer', phase: 'Synthesize', label: `synthesis:${labelOf(chairmanModel)}` })
+  synthesis = await agent(reconcilePrompt, { agentType: OPPY_AGENT, phase: 'Synthesize', label: `synthesis:${labelOf(chairmanModel)}` })
 }
 } catch (e) {
   synthNote = `chairman (${chairmanModel}) threw: ${String((e && e.message) || e)}`

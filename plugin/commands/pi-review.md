@@ -18,7 +18,8 @@ Reconfiguration lives in a config the command reads — NOT in per-call args (th
    `tier=med`, `chairman=glm-5.2`, `kimiMode=opencode`.
 2. **Per-call overrides:** parse `$ARGUMENTS` and let them override the config for THIS run only — a tier
    keyword (`low`/`med`/`high`), a target (path/glob/`diff`/`branch`; default `git diff HEAD`), a chairman
-   (`opus`/`sonnet`/an `opencode-go/<alias>`), a `kimiMode` (`opencode`/`cli`/`off`), and any number of
+   (`opus`/`sonnet`/an `opencode-go/<alias>`), a `kimiMode` (`opencode`/`cli`/`off`), an explicit
+   `agentPrefix=<pi|"">` (escape hatch for step 3's namespace resolution — see there), and any number of
    on-demand review **lenses** via `--lens <name>` or `lens=<name>` (repeatable, e.g. `--lens security
    --lens ux`). Collect them into a `lenses` array passed in the Workflow args (below); the engine adds
    them on top of the always-on default lenses and ignores unknown names with a note. Valid on-demand
@@ -110,11 +111,19 @@ Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by de
      `.pi-review/` in the repo for in-place auditing) before sending code; nothing raw was sent. Masking
      stays on at every scope (explicit `mode=yolo` sends raw); ask in chat "what would PI mask in
      `<path>`?" to preview any file.** Then create that marker file. If it exists, stay silent.
-3. **Run it** by scriptPath (never by name — name-invocation can hit a stale registration):
+3. **Resolve the agent namespace, then run it** by scriptPath (never by name — name-invocation can hit
+   a stale registration). Claude registers a plugin's agents **namespaced** (`pi:oppy-reviewer`), but a
+   manual install (agent `.md` files in `~/.claude/agents/`) registers them **bare** — and the engine
+   cannot see the agent registry, only you can. So look at YOUR available agent types and set
+   `agentPrefix`: `"pi"` if `pi:oppy-reviewer` is listed (the normal plugin install — this is also the
+   default if you omit the arg), `""` if only a bare `oppy-reviewer` is listed. Get this wrong and every
+   leaf comes back `UNAVAILABLE` before a backend is ever contacted — the engine reports the namespace it
+   used in its first log line (`agents=pi:`), so check that line first if the whole panel is UNAVAILABLE.
+   An explicit `agentPrefix=…` in `$ARGUMENTS` overrides this detection (operator escape hatch).
    ```
    Workflow({
      scriptPath: "~/.claude/workflows/pi-council.js",
-     args: { tier, target, workdir: <cwd or the target's dir>, chairmanModel, kimiMode, mode, ...(fileList ? {fileList} : {}), ...(dropped ? {dropped} : {}), ...(lenses && lenses.length ? {lenses} : {}) }
+     args: { tier, target, workdir: <cwd or the target's dir>, chairmanModel, kimiMode, mode, agentPrefix, ...(fileList ? {fileList} : {}), ...(dropped ? {dropped} : {}), ...(lenses && lenses.length ? {lenses} : {}) }
    })
    ```
    Pass `mode` (diff/feature/list/pack/curated/yolo — default `diff` for non-whole-repo) so the coverage
@@ -125,5 +134,7 @@ Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by de
    `UNAVAILABLE`/`PARTIAL` leaves and any degrade note honestly so coverage stays truthful — soft-degrade
    is fine, silent is not.
 5. **If the engine file is genuinely absent** (not a plugin install, copy failed): run the tier inline as a
-   fallback — parallel `oppy-reviewer` agents (one `-m opencode-go/<alias>` each; + a `kimi-reviewer` at
-   med/high when `kimiMode:cli`), then an Opus synthesis. Tell the operator once that it ran in fallback mode.
+   fallback — parallel `pi:oppy-reviewer` agents (one `-m opencode-go/<alias>` each; + a `pi:kimi-reviewer`
+   at med/high when `kimiMode:cli`), then an Opus synthesis. Use the **same namespace you resolved in step
+   3** — `pi:`-prefixed when installed as this plugin, bare (`oppy-reviewer` / `kimi-reviewer`) when the
+   agents were installed standalone. Tell the operator once that it ran in fallback mode.

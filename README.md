@@ -25,6 +25,8 @@ This is a front-end. The reviewing happens through the opencode CLI on an openco
 
 Restart the session so the command registers, then run `/pi-review med <target>`. It installs its own review engine on first use — and refreshes it automatically whenever you `/plugin update` (it re-copies the bundled engine whenever the installed one differs, so upgrades actually take effect).
 
+**If every leaf comes back `UNAVAILABLE` instantly** (before any model is contacted), it's the agent namespace, not your plan. Installed as a plugin, PI's reviewers register as `pi:oppy-reviewer`; dropped into `~/.claude/agents/` by hand, they register bare. `/pi-review` picks the right one and the engine prints it in its first log line (`agents=pi:`). If it guessed wrong, re-run with `agentPrefix=""` (bare) or `agentPrefix=pi` (namespaced).
+
 ### Why not Codex
 
 PI targets Claude Code, and only Claude Code. I did try to build a Codex edition — and I'll be straight with you: I tried, I failed, and there is nothing to pick up. Codex's managed Auto-review policy blocks exporting workspace data to third-party model endpoints, even with explicit, scope-specific operator consent, and no approval profile I tried could get past it consistently. Sessions that worked once would refuse the next time, with no way to reproduce the difference — not a workflow I can hand you in good conscience. The abandoned experiment is preserved on the `codex` branch if anyone wants to pick it back up, but it's unsupported and I don't recommend it. Claude Code is the one host, and all of PI's attention goes there.
