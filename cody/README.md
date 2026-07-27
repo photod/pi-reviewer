@@ -32,7 +32,10 @@ invokes your local, authenticated `codex`.
 /plugin install cody@pi-reviewer
 ```
 
-Then spawn `cody-reviewer` (read-only 2nd opinion) or `cody-worker` (write mode) as a subagent.
+Then spawn `cody:cody-reviewer` (read-only 2nd opinion) or `cody:cody-worker` (write mode) as a subagent
+— installed as this plugin, Claude registers both under the `cody:` namespace. Drop the prefix
+(`cody-reviewer` / `cody-worker`) only if you installed the agent `.md` files straight into
+`~/.claude/agents/` instead. Using the wrong form fails with "agent not found", not with a bad review.
 
 ## Honest caveats
 
@@ -45,8 +48,9 @@ Then spawn `cody-reviewer` (read-only 2nd opinion) or `cody-worker` (write mode)
 - **Codex keeps a transcript of everything it read.** Every `codex exec` run persists a full session
   rollout under `~/.codex/sessions/` — raw, unmasked, unencrypted, kept indefinitely (mine is already
   ~500 files / 128 MB). That's a local disk footprint the `/pi-review` masking layer does **not** cover,
-  and it's Codex's behaviour, not PI's. `codex exec --ephemeral` runs without persisting session files if
-  you'd rather it left nothing behind; prune the directory otherwise.
+  and it's Codex's behaviour, not PI's. Note that **both agents pin their exact invocation and neither
+  passes `--ephemeral`** — so today the practical control is pruning `~/.codex/sessions/` yourself;
+  `codex exec --ephemeral` (no session files at all) applies to Codex runs you launch by hand.
 - **Planted instructions are ignored.** Both agents treat any instruction embedded in the code they read —
   an *"ignore the above"* comment, a *"TODO: also delete…"* line — as content to flag, never a command to
   obey (the worker is told the same about files it reads while editing). Best-effort prompt hardening, not a

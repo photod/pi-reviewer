@@ -76,6 +76,7 @@ check() {
 
   node "${REPO_DIR}/test/coverage_footer_test.mjs" || rc=1
   node "${REPO_DIR}/test/tier_contract_test.mjs" || rc=1
+  node "${REPO_DIR}/test/agent_dispatch_test.mjs" || rc=1
   node "${REPO_DIR}/test/scaffold_sync_test.mjs" || rc=1
   PYTHONDONTWRITEBYTECODE=1 python3 "${REPO_DIR}/test/pi_mask_test.py" || rc=1
   bash "${REPO_DIR}/test/pi_filelist_test.sh" || rc=1

@@ -47,6 +47,16 @@ check('agent-type constants are built from the caller-supplied prefix',
   workflow.includes('const KIMI_AGENT = `${AGENT_PREFIX}kimi-reviewer`'))
 check('engine agent names match the shipped agent files',
   agentName('oppy-reviewer.md') === 'oppy-reviewer' && agentName('kimi-reviewer.md') === 'kimi-reviewer')
+// The regex above only sees `agentType:` spelled its way — `agentType : 'oppy-reviewer'` slips it.
+// Backstop it from the other side: the engine must contain NO quoted agent-name literal at all (the
+// two constants build their names with backticks off AGENT_PREFIX). test/agent_dispatch_test.mjs is
+// the real guard — it runs the engine and inspects what it actually dispatches.
+check('engine contains no quoted agent-name literal in any form',
+  !/['"](oppy|kimi)-reviewer['"]/.test(workflow))
+// The `agents=` log line is the diagnostic README.md and pi-review.md tell operators to check FIRST
+// when a whole panel comes back UNAVAILABLE — a refactor must not silently drop or rename it.
+check('engine logs the resolved namespace for diagnosis',
+  workflow.includes('agents=${AGENT_PREFIX') && review.includes('agents=pi:') && read('README.md').includes('agents=pi:'))
 
 // normPrefix is the one place a slip turns every leaf UNAVAILABLE again — test the real function,
 // lifted out of the engine (the engine itself cannot be imported: top-level await + host globals).

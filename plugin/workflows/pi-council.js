@@ -112,14 +112,22 @@ if (kimiMode !== 'opencode' && kimiMode !== 'cli' && kimiMode !== 'off') throw n
 // zero-config is correct out of the box. A wrong prefix stays LOUD (every leaf UNAVAILABLE) — this
 // is deliberately NOT probed-and-retried: a silent fallback to whatever else answers would produce a
 // verdict from no council while the coverage footer still read "N/N leaves OK".
-// Accepts 'pi', 'pi:', ' pi ' and undefined (→ 'pi:'); trailing colons are normalized, never doubled.
-// BARE is spelled with the WORD 'bare' (or 'none', or an empty value) — never an empty quoted string:
-// `agentPrefix=""` parsed out of $ARGUMENTS arrives here as the two-character string `""`, which would
-// otherwise become the prefix `"":` and break every leaf exactly like the bug this arg exists to fix.
-// So: strip surrounding quotes, and treat the bare-sentinels as ''.
+// Accepts 'pi', 'pi:', ' pi ', ' pi : ' and undefined (→ 'pi:'); trailing colons/space are normalized,
+// never doubled. BARE is spelled with the WORD 'bare' (RESERVED, as is 'none') or an empty value — never
+// an empty quoted string: `agentPrefix=""` parsed out of $ARGUMENTS arrives here as the two-character
+// string `""`, which would otherwise become the prefix `"":` and break every leaf exactly like the bug
+// this arg exists to fix. So: strip surrounding quotes, and treat the bare-sentinels as ''.
+// Anything left that cannot be a plugin name is REJECTED LOUDLY here rather than silently becoming a
+// prefix that matches no agent — a thrown error names the problem; a whole panel of UNAVAILABLE leaves
+// makes the operator guess. (Every other arg in this engine validates the same way.) The name is NOT
+// lowercased: it must match the plugin's registered name EXACTLY, and a fork may capitalize it.
 function normPrefix(p) {
-  const s = String(p == null ? 'pi' : p).trim().replace(/^["']+|["']+$/g, '').trim().replace(/:+$/, '')
-  return (!s || s.toLowerCase() === 'bare' || s.toLowerCase() === 'none') ? '' : `${s}:`
+  const s = String(p == null ? 'pi' : p).trim().replace(/^["']+|["']+$/g, '').trim().replace(/:+$/, '').trim()
+  if (!s || s.toLowerCase() === 'bare' || s.toLowerCase() === 'none') return ''
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(s)) {
+    throw new Error(`invalid agentPrefix '${p}' — use a plugin name (e.g. 'pi'), or 'bare' for agents installed straight into ~/.claude/agents/`)
+  }
+  return `${s}:`
 }
 const AGENT_PREFIX = normPrefix(A.agentPrefix)
 const OPPY_AGENT = `${AGENT_PREFIX}oppy-reviewer`

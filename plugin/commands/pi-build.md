@@ -49,8 +49,11 @@ Tiers scale the backend reasoning hint, not the model: `low`→low · `med`→me
    and you cannot derive one from the specs/tests, **do NOT invent it** — ask the operator for the
    acceptance command instead of guessing.
 
-2. **Spawn the worker** with the Agent tool — `subagent_type: "pi:glm-worker"` (namespaced when installed
-   as this plugin; bare `glm-worker` if installed standalone). Pass it: the **tier** (as a ceiling), the
+2. **Spawn the worker** with the Agent tool — `subagent_type: "pi:glm-worker"`. Installed as this plugin,
+   Claude registers the worker under the `pi:` namespace; a manual install (the agent `.md` dropped into
+   `~/.claude/agents/`) registers it BARE. Check YOUR available agent types and use whichever is listed —
+   `pi:glm-worker` if present, plain `glm-worker` otherwise. The wrong one fails with "agent not found"
+   before any model is contacted. Pass it: the **tier** (as a ceiling), the
    **task spec + acceptance criteria + scope/out-of-scope**, the **workdir**, and the **implement model**
    family if overridden. The worker runs its own pipeline: scout → implement (GLM) → verify → augment
    tests (a different model) → cross-model diff review — each leg sequential, none committed.

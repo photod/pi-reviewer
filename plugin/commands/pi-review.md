@@ -1,7 +1,7 @@
 ---
 name: pi-review
 description: Poor Intelligence, not AI ;-) — a council of cheap opencode-go models fans out; a glm-5.2 chairman reconciles ONE verdict.
-argument-hint: "[low|med(default)|high] [target] [chairman: glm-5.2(default)|opus|sonnet] [kimiMode: opencode(default)|cli|off]"
+argument-hint: "[low|med(default)|high] [target] [chairman: glm-5.2(default)|opus|sonnet] [kimiMode: opencode(default)|cli|off] [agentPrefix: pi(default)|bare]"
 ---
 
 # /pi-review — Poor Intelligence code-review council
@@ -119,7 +119,9 @@ Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by de
    default if you omit the arg), `"bare"` if only an unprefixed `oppy-reviewer` is listed. Get this wrong and every
    leaf comes back `UNAVAILABLE` before a backend is ever contacted — the engine reports the namespace it
    used in its first log line (`agents=pi:`), so check that line first if the whole panel is UNAVAILABLE.
-   An explicit `agentPrefix=…` in `$ARGUMENTS` overrides this detection (operator escape hatch).
+   An explicit `agentPrefix=…` in `$ARGUMENTS` overrides this detection (operator escape hatch). `bare`
+   and `none` are RESERVED words meaning "no namespace"; anything that isn't a plausible plugin name is
+   rejected with a loud error rather than becoming a prefix that matches no agent.
    ```
    Workflow({
      scriptPath: "~/.claude/workflows/pi-council.js",
