@@ -56,7 +56,7 @@ Nothing to set up to get going. When you do want something different, it all liv
 
 ```
 /pi-config                          what am I running right now?
-/pi-config model glm glm-5.3        bump a model
+/pi-config model minimax minimax-m2.7    pin a model to a version
 /pi-config tier low deepseek mimo   who reviews at low
 /pi-config set kimiMode cli         run Kimi through your own CLI instead
 /pi-config set chairman opus        seat someone else in the chair
@@ -64,7 +64,7 @@ Nothing to set up to get going. When you do want something different, it all liv
 ```
 
 Same thing from a shell, if you'd rather not go through Claude: `scripts/pi-config.sh show`,
-`… model glm glm-5.3`, `… doctor`. Both write the same file; the file is plain JSON you can edit by
+`… model minimax minimax-m2.7`, `… doctor`. Both write the same file; the file is plain JSON you can edit by
 hand too.
 
 ```json
@@ -72,7 +72,7 @@ hand too.
   "tier": "med",
   "chairman": "glm",
   "kimiMode": "opencode",
-  "models": { "glm": "glm-5.3" },
+  "models": { "minimax": "minimax-m2.7" },
   "tiers":  { "low": ["deepseek", "mimo", "qwen"] }
 }
 ```
@@ -96,9 +96,17 @@ reviews is well within it. Claude can also seat `opus` or `sonnet` in the chair.
 ### Models you have to ask for
 
 A few models on the plan are **opt-in per run** — cost, quota, or policy makes "always on" the wrong
-default. Out of the box: `qwen3.8-max`, `kimi-k3`, and `grok-4.5`. The council never reaches for one
-on its own. If something resolves to one anyway — you pinned it, or seated it as chairman — it runs
-the stand-in instead and tells you so in the coverage footer:
+default. Out of the box:
+
+| On-demand | Auto stand-in |
+|---|---|
+| `glm-5.3` | `glm-5.2` |
+| `qwen3.8-max` | `qwen3.7-max` |
+| `kimi-k3` | `kimi-k2.7-code` |
+| `grok-4.5` | `gpt-5.6-luna` |
+
+The council never reaches for one on its own. If something resolves to one anyway — you pinned it, or
+seated it as chairman — it runs the stand-in instead and tells you so in the coverage footer:
 
 ```
 coverage: diff · 4/4 leaves OK · 1 DOWNGRADED on-demand (kimi-k3→kimi-k2.7-code)

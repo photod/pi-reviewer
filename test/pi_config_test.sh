@@ -22,7 +22,7 @@ check() { if [[ "$1" -eq 0 ]]; then pass "$2"; else fail "$2"; fi }
 mkdir -p "${TMP}/bin"
 {
   printf '#!/bin/bash\n'
-  printf 'printf "%%s\\n" opencode/big-pickle opencode-go/glm-5.2 opencode-go/glm-5.3 \\\n'
+  printf 'printf "%%s\\n" opencode/big-pickle opencode-go/glm-5.1 opencode-go/glm-5.2 opencode-go/glm-5.3 \\\n'
   printf '  opencode-go/qwen3.7-max opencode-go/qwen3.8-max opencode-go/deepseek-v4-pro \\\n'
   printf '  opencode-go/mimo-v2.5-pro opencode-go/minimax-m3 opencode-go/kimi-k2.7-code \\\n'
   printf '  opencode-go/kimi-k2.6 opencode-go/kimi-k3 opencode-go/gpt-5.6-luna opencode-go/grok-4.5 opencode-go/hy3\n'
@@ -53,15 +53,24 @@ pi set tier ultra >/dev/null 2>&1
 pi set nosuchkey x >/dev/null 2>&1;           [[ $? -ne 0 ]]; check $? 'an unknown settings key is rejected'
 
 # --- models ---------------------------------------------------------------------------------------
-pi model glm glm-5.3 >/dev/null 2>&1;         check $? 'pinning a family to an on-plan alias succeeds'
-grep -q 'glm-5.3' <<< "$(pi dump)";           check $? 'the model override is persisted'
+pi model glm glm-5.1 >/dev/null 2>&1;         check $? 'pinning a family to an on-plan alias succeeds'
+grep -q 'glm-5.1' <<< "$(pi dump)";           check $? 'the model override is persisted'
 pi model glm nope-9 >/dev/null 2>&1;          [[ $? -ne 0 ]]; check $? 'an OFF-PLAN alias is refused (the typo guard)'
-grep -q 'glm-5.3' <<< "$(pi dump)";           check $? 'the refused write did not corrupt the existing value'
-pi model qwen glm-5.3 >/dev/null 2>&1;        [[ $? -ne 0 ]]; check $? 'two families on one alias is refused'
+grep -q 'glm-5.1' <<< "$(pi dump)";           check $? 'the refused write did not corrupt the existing value'
+pi model qwen glm-5.1 >/dev/null 2>&1;        [[ $? -ne 0 ]]; check $? 'two families on one alias is refused'
+
+# Pinning to an ON-DEMAND alias is allowed but must be called out at write time — otherwise the
+# operator only discovers the substitution in a coverage footer, mid-review.
+out="$(pi model glm glm-5.3 2>&1)"
+grep -q 'ON-DEMAND' <<< "${out}";             check $? 'pinning an on-demand alias warns that runs will use the stand-in'
+grep -q 'glm-5.2' <<< "${out}";               check $? 'the warning names the stand-in that will actually run'
+grep -q 'ON-DEMAND' <<< "$(pi doctor 2>&1)";  check $? 'doctor flags a family pinned to an on-demand model'
+pi doctor >/dev/null 2>&1;                    check $? 'an on-demand pin is a note, not a doctor failure'
+pi model glm glm-5.1 >/dev/null 2>&1
 pi --no-verify model glm nope-9 >/dev/null 2>&1; check $? '--no-verify allows an unverifiable alias (offline escape hatch)'
 pi model glm --unset >/dev/null 2>&1;         check $? 'a model override can be removed'
 grep -q 'nope-9' <<< "$(pi dump)";            [[ $? -ne 0 ]]; check $? 'the removed override is really gone'
-pi model 'Bad Family' glm-5.3 >/dev/null 2>&1; [[ $? -ne 0 ]]; check $? 'a malformed family name is refused'
+pi model 'Bad Family' glm-5.1 >/dev/null 2>&1; [[ $? -ne 0 ]]; check $? 'a malformed family name is refused'
 
 # --- tiers ------------------------------------------------------------------------------------------
 pi tier low deepseek mimo >/dev/null 2>&1;    check $? 'a tier roster can be set'

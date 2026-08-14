@@ -86,6 +86,7 @@ const BASE_ON_DEMAND = {
   'qwen3.8-max': 'qwen3.7-max',
   'kimi-k3': 'kimi-k2.7-code',
   'grok-4.5': 'gpt-5.6-luna',
+  'glm-5.3': 'glm-5.2',   // costs a fortune on the Go plan — the flagship stays 5.2 unless confirmed
 }
 // A downgrade target that is ITSELF on-demand would chain (or loop) — reject at merge time rather
 // than resolve it at use time, so the map is provably one hop.

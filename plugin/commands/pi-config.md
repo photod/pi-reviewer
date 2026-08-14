@@ -25,7 +25,9 @@ Everything goes through the script — it owns validation, atomic writes, and th
 2. **Arguments that already match the script's own grammar** (`show`, `doctor`, `models`, `set …`,
    `model …`, `tier …`, `ondemand …`, `reset …`) → pass them through verbatim.
 3. **Plain English** → translate to exactly one command, run it, and say what changed:
-   - "use glm 5.3" / "bump glm" → `model glm glm-5.3`
+   - "use minimax 2.7" / "pin minimax" → `model minimax minimax-m2.7`
+   - "use glm 5.3" → `model glm glm-5.3`, then warn that 5.3 is **on-demand**: normal runs will use
+     glm-5.2 unless they confirm it per run with `--with glm-5.3`
    - "turn kimi off" → `set kimiMode off` · "use my own kimi CLI" → `set kimiMode cli`
    - "drop minimax from high" → read `show` first, then `tier high <the remaining families>`
    - "make opus the chairman" → `set chairman opus`
@@ -53,8 +55,8 @@ Tier NAMES are fixed at `low|med|high` — that is `/pi-review`'s input contract
 
 ## On-demand models
 
-Some models are opt-in per run (`qwen3.8-max`, `kimi-k3`, `grok-4.5` by default). **Consent cannot be
-stored** — a config saying "always use Grok" is exactly the automatic use the gate exists to prevent.
+Some models are opt-in per run (`glm-5.3`, `qwen3.8-max`, `kimi-k3`, `grok-4.5` by default — `glm-5.3`
+is priced well above the flat plan, hence the gate). **Consent cannot be stored** — a config saying "always use Grok" is exactly the automatic use the gate exists to prevent.
 So `pi.json` only holds the downgrade map; to actually use one, the operator names it on the run:
 
 ```

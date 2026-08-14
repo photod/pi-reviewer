@@ -45,7 +45,7 @@ default_tier() {
   esac
 }
 # on-demand alias : auto stand-in. NEVER used without per-run confirmation; the auto path downgrades.
-DEFAULT_ONDEMAND='qwen3.8-max:qwen3.7-max kimi-k3:kimi-k2.7-code grok-4.5:gpt-5.6-luna'
+DEFAULT_ONDEMAND='qwen3.8-max:qwen3.7-max kimi-k3:kimi-k2.7-code grok-4.5:gpt-5.6-luna glm-5.3:glm-5.2'
 TIER_NAMES="low med high"
 EFFORTS="low medium high xhigh max"
 
@@ -172,6 +172,17 @@ effective_tier() {
   [[ -n "${set_to}" ]] && { printf '%s' "${set_to}"; return; }
   printf '%s' "$(default_tier "${name}")"
 }
+# The stand-in an alias downgrades to, or empty if the alias is an ordinary auto model. Config wins
+# over the shipped map, and a config entry pointing somewhere else RETIRES the shipped one.
+ondemand_target() {
+  local set_to pair
+  set_to="$(json_py sub onDemand "$1")"
+  [[ -n "${set_to}" ]] && { printf '%s' "${set_to}"; return; }
+  for pair in ${DEFAULT_ONDEMAND}; do
+    [[ "${pair%%:*}" == "$1" ]] && { printf '%s' "${pair##*:}"; return; }
+  done
+  printf ''
+}
 is_family() { grep -qxF -- "$1" <<< "$(effective_families)"; }
 # shellcheck disable=SC2086  # $2 is a space-separated word list on purpose
 in_list()   { grep -qxF -- "$1" <<< "$(printf '%s\n' $2)"; }
@@ -268,6 +279,14 @@ cmd_model() {
   done
   json_py setsub models "${fam}" "${alias}"
   log "model ${fam} = ${alias}"
+  # Pinning a family to an on-demand alias is allowed — but the auto path will stand in for it every
+  # run, so say that HERE rather than letting the operator discover it in a coverage footer later.
+  local stand_in
+  stand_in="$(ondemand_target "${alias}")"
+  if [[ -n "${stand_in}" ]]; then
+    warn "'${alias}' is ON-DEMAND: normal runs will use '${stand_in}' instead. To really run it: /pi-review ... --with ${alias} (and confirm)."
+    warn "if it should be an ordinary auto model, run: pi-config.sh ondemand ${alias} --unset"
+  fi
 }
 
 cmd_tier() {
@@ -355,9 +374,12 @@ cmd_doctor() {
     log "models (verified against your live opencode-go plan)"
     for fam in $(effective_families); do
       alias="$(effective_alias "${fam}")"
+      local stand_in
+      stand_in="$(ondemand_target "${alias}")"
       if [[ -z "${alias}" ]]; then log "  FAIL ${fam}: no alias — configured family with no model"; rc=1
-      elif alias_on_plan "${alias}"; then log "  ok   ${fam} → ${alias}"
-      else log "  FAIL ${fam} → ${alias} is NOT on your plan — this leaf will HANG until the watchdog kills it"; rc=1; fi
+      elif ! alias_on_plan "${alias}"; then log "  FAIL ${fam} → ${alias} is NOT on your plan — this leaf will HANG until the watchdog kills it"; rc=1
+      elif [[ -n "${stand_in}" ]]; then log "  note ${fam} → ${alias} is ON-DEMAND — normal runs use ${stand_in}; confirm per run with --with ${alias}"
+      else log "  ok   ${fam} → ${alias}"; fi
     done
   else
     log "models: plan verification skipped (--no-verify or no opencode CLI)"

@@ -47,12 +47,14 @@ check('a clean run reports no downgrades in the footer',
   !def.result.coverage.includes('DOWNGRADED') && def.result.downgraded.length === 0)
 
 // --- models overlay ------------------------------------------------------------------------------
-const bumped = await runEngine({ ...base, tier: 'med', models: { glm: 'glm-5.3' } })
-check('models overlay bumps one family and leaves the rest alone',
-  bumped.leaves.includes('opencode-go/glm-5.3') && bumped.leaves.includes('opencode-go/qwen3.7-max') &&
+// glm-5.1 rather than glm-5.3 on purpose: 5.3 is ON-DEMAND (it would be downgraded here, which is
+// tested further down) — this case is about the plain overlay, so it needs an ordinary auto alias.
+const bumped = await runEngine({ ...base, tier: 'med', models: { glm: 'glm-5.1' } })
+check('models overlay repoints one family and leaves the rest alone',
+  bumped.leaves.includes('opencode-go/glm-5.1') && bumped.leaves.includes('opencode-go/qwen3.7-max') &&
   !bumped.leaves.includes('opencode-go/glm-5.2'))
 check('models overlay accepts a fully-qualified alias too',
-  (await runEngine({ ...base, tier: 'med', models: { glm: 'opencode-go/glm-5.3' } })).leaves.includes('opencode-go/glm-5.3'))
+  (await runEngine({ ...base, tier: 'med', models: { glm: 'opencode-go/glm-5.1' } })).leaves.includes('opencode-go/glm-5.1'))
 check('models overlay can introduce a NEW family usable in a tier',
   (await runEngine({ ...base, tier: 'low', models: { hy3: 'hy3' }, tiers: { low: ['hy3'] } })).leaves.join(',') === 'opencode-go/hy3')
 check('two families on one alias throws (panel would run the same model twice)',
@@ -121,9 +123,22 @@ check('an Anthropic chairman is untouched by the gate',
   (await runEngine({ ...base, tier: 'low', chairmanModel: 'opus' })).result.chairman === 'opus')
 
 check('a downgrade CHAIN in onDemand config throws (a stand-in must be an auto model)',
-  /chain/.test(await throws({ ...base, onDemand: { 'glm-5.3': 'kimi-k3' } })))
+  /chain/.test(await throws({ ...base, onDemand: { 'glm-5.1': 'kimi-k3' } })))
 check('an on-demand model standing in for itself throws',
-  /itself|stand-in/.test(await throws({ ...base, onDemand: { 'glm-5.3': 'glm-5.3' } })))
+  /itself|stand-in/.test(await throws({ ...base, onDemand: { 'glm-5.1': 'glm-5.1' } })))
+
+// The flagship must not silently get more expensive: glm-5.3 is priced out of the flat plan, so it
+// is on-demand and the chair/leaf fall back to 5.2 unless the operator confirms it for that run.
+const glm53 = await runEngine({ ...base, tier: 'med', models: { glm: 'glm-5.3' } })
+check('glm-5.3 is on-demand — a pinned glm-5.3 runs glm-5.2 instead',
+  glm53.leaves.includes('opencode-go/glm-5.2') && !glm53.leaves.includes('opencode-go/glm-5.3'))
+check('the glm downgrade is reported, not silent',
+  glm53.result.coverage.includes('glm-5.3→glm-5.2'))
+check('a confirmed glm-5.3 runs for real',
+  (await runEngine({ ...base, tier: 'med', models: { glm: 'glm-5.3' }, allowOnDemand: ['glm-5.3'] }))
+    .leaves.includes('opencode-go/glm-5.3'))
+check('an unconfirmed glm-5.3 chairman stands down to glm-5.2',
+  (await runEngine({ ...base, tier: 'low', chairmanModel: 'glm-5.3' })).result.chairman === 'opencode-go/glm-5.2')
 check('pi.json can retire an on-demand entry by pointing a new one at an auto model',
   (await runEngine({ ...base, tier: 'low', models: { deepseek: 'deepseek-v4-flash' }, onDemand: { 'deepseek-v4-flash': 'deepseek-v4-pro' } }))
     .result.downgraded.join(',') === 'deepseek-v4-flash→deepseek-v4-pro')

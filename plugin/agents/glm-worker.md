@@ -22,7 +22,7 @@ review discipline, applied to *writing* code instead of reviewing it.
 Every `-m` flag below uses a **placeholder** that resolves to the full alias in this table.
 
 **The host's `~/.claude/pi.json` wins over this table.** If its `models` map names a family you are
-about to use (`{"models": {"glm": "glm-5.3"}}`), run THAT alias — the operator set it deliberately,
+about to use (`{"models": {"glm": "glm-5.1"}}`), run THAT alias — the operator set it deliberately,
 via `/pi-config`, and it was checked against their live plan. `/pi-build` passes you the resolved
 aliases when it has them; if you are reading the file yourself, treat a `models` entry as
 authoritative and this table as the fallback for families it does not mention.

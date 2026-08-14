@@ -25,7 +25,7 @@ companion to `/pi-review`: same cheap opencode-go plan, same Fable-5 discipline,
    `tier`, `models`; build-specific: `buildModel`). **No file → built-in defaults:** `tier=med`,
    `buildModel=glm`, shipped registry. If `models` names a family the worker will use, resolve that
    family to the configured alias and pass the resolved `opencode-go/<alias>` into the worker's task —
-   a host that bumped `glm` to `glm-5.3` via `/pi-config` must not silently get `glm-5.2` here.
+   a host that repointed `glm` via `/pi-config` must not silently get the shipped default here.
 2. **Per-call overrides** from `$ARGUMENTS` (this run only): a tier keyword (`low`/`med`/`high`), the
    **task** (a description and/or the target files — everything that isn't a recognized keyword), and an
    optional implement-model family — `glm` (default) or **any** opencode-go family (`qwen` · `minimax` ·

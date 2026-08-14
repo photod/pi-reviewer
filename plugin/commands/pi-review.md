@@ -14,7 +14,7 @@ findings only). You orchestrate; you do NOT write the review yourself.
 Reconfiguration lives in a config the command reads — NOT in per-call args (those are one-off overrides).
 1. **Standing config:** if `~/.claude/pi.json` exists, read it for defaults — keys: `tier`, `chairman`,
    `kimiMode`, plus the registry overlays `models`, `tiers`, `onDemand`. This is where a host is set up
-   ONCE (e.g. `{"kimiMode":"cli"}` for the native Kimi CLI, or `{"models":{"glm":"glm-5.3"}}` to bump a
+   ONCE (e.g. `{"kimiMode":"cli"}` for the native Kimi CLI, or `{"models":{"minimax":"minimax-m2.7"}}` to pin a
    model). **No file → built-in defaults** (the fridge still works): `tier=med`, `chairman=glm-5.2`,
    `kimiMode=opencode`, shipped registry and rosters.
    - Pass `models` / `tiers` / `onDemand` straight through in the Workflow args, unchanged — the engine
@@ -35,7 +35,7 @@ Reconfiguration lives in a config the command reads — NOT in per-call args (th
    them on top of the always-on default lenses and ignores unknown names with a note. Valid on-demand
    lenses: `ux`, `blastradius`, `security`, `simplicity`, `honesty` (see `lenses.md`).
 2b. **On-demand models (`--with <alias>`, repeatable).** Some models are opt-in per run — never
-   automatic — because of cost/quota/policy (`qwen3.8-max`, `kimi-k3`, `grok-4.5` by default; the map
+   automatic — because of cost/quota/policy (`glm-5.3`, `qwen3.8-max`, `kimi-k3`, `grok-4.5` by default; the map
    lives in pi.json `onDemand`). `--with` is a REQUEST, not the consent. Before passing it on:
    - **Get the operator's explicit confirmation in THIS run** (AskUserQuestion, or an unambiguous
      yes already in their message). A standing config can NEVER grant this — that is precisely why
