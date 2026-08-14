@@ -19,10 +19,18 @@ review discipline, applied to *writing* code instead of reviewing it.
 
 ## Models — single source of truth (bump a version in ONE place)
 
-Every `-m` flag below uses a **placeholder** that resolves to the full alias in this table. The
-**canonical** version source is the `MODELS` registry in the council engine (`pi-council.js`) — this table
-is a MIRROR of it. To bump a version (e.g. `glm-5.2` → `glm-5.3`), edit the registry there AND update this
-mirror to match; the `-m` calls below reference these placeholders, so nothing else changes.
+Every `-m` flag below uses a **placeholder** that resolves to the full alias in this table.
+
+**The host's `~/.claude/pi.json` wins over this table.** If its `models` map names a family you are
+about to use (`{"models": {"glm": "glm-5.3"}}`), run THAT alias — the operator set it deliberately,
+via `/pi-config`, and it was checked against their live plan. `/pi-build` passes you the resolved
+aliases when it has them; if you are reading the file yourself, treat a `models` entry as
+authoritative and this table as the fallback for families it does not mention.
+
+Absent any config, the aliases below are the defaults. They MIRROR `BASE_MODELS` in the council
+engine (`pi-council.js`), which is the canonical default source — to change a default for good, edit
+neither: run `pi-config.sh model <family> <alias>`. (Editing the engine does not survive: /pi-review
+force-copies the plugin's copy over the installed one on any difference.)
 
 | Placeholder    | Full opencode-go alias        | Role                                                            |
 |----------------|-------------------------------|-----------------------------------------------------------------|

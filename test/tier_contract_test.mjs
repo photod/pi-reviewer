@@ -18,8 +18,8 @@ check('review command exposes exact tiers', review.includes('[low|med(default)|h
 check('engine self-install refreshes on upgrade (not copy-if-absent)', review.includes('cmp -s') && review.includes('refresh it whenever'))
 check('build command exposes exact tiers', build.includes('[low|med(default)|high]'))
 check('workflow defaults to med', workflow.includes("A.tier || 'med'"))
-check('workflow low panel preserved', workflow.includes("low:  { families: ['minimax', 'deepseek', 'mimo']"))
-check('workflow med panel preserved', workflow.includes("med:  { families: ['glm', 'qwen'], kimi: true, effort: 'medium'"))
+check('workflow low panel preserved', workflow.includes("low:  { families: ['deepseek', 'mimo', 'qwen']"))
+check('workflow med panel preserved', workflow.includes("med:  { families: ['glm', 'qwen', 'deepseek'], kimi: true, effort: 'medium'"))
 check('workflow high panel preserved', workflow.includes("high: { families: ['glm', 'qwen', 'minimax', 'deepseek', 'mimo']"))
 check('workflow maps max/ultra aliases to high',
   workflow.includes("rawTier === 'max' || rawTier === 'ultra'") && workflow.includes('use low, med, or high'))
@@ -30,6 +30,48 @@ check('builder provider mapping is coherent',
 check('glm-worker model aliases stay in sync with the engine registry',
   worker.includes('opencode-go/glm-5.2') && worker.includes('opencode-go/qwen3.7-max') &&
   workflow.includes("glm:      'opencode-go/glm-5.2'") && workflow.includes("qwen:     'opencode-go/qwen3.7-max'"))
+
+// --- pi-config.sh ↔ engine defaults ------------------------------------------
+// pi-config.sh MIRRORS the engine's defaults because it must work standalone (before the plugin is
+// installed, and offline). A mirror silently drifts — so compare them here, the same way
+// scaffold_sync_test.mjs guards the embedded scaffolds. If this fails, the config tool is showing
+// the operator a roster the council does not run.
+const config = read('scripts/pi-config.sh')
+const block = (src, re) => (src.match(re) || [])[1] || ''
+const pairs = (src, re) => { const out = {}; for (const m of src.matchAll(re)) out[m[1]] = m[2]; return out }
+
+const engineModels = pairs(block(workflow, /const BASE_MODELS = \{([\s\S]*?)\n\}/), /(\w+):\s*'opencode-go\/([^']+)'/g)
+const configModels = pairs(block(config, /default_alias\(\) \{([\s\S]*?)\n\}/), /^\s+(\w+)\)\s+echo '([^']+)'/gm)
+check('pi-config.sh model defaults match the engine registry',
+  JSON.stringify(engineModels) === JSON.stringify(configModels))
+check('pi-config.sh knows every engine family',
+  Object.keys(engineModels).sort().join(' ') === block(config, /DEFAULT_FAMILIES="([^"]+)"/).split(/\s+/).sort().join(' '))
+
+const engineTiers = pairs(block(workflow, /const BASE_TIERS = \{([\s\S]*?)\n\}/), /(\w+):\s*\{ families: \[([^\]]*)\]/g)
+const configTiers = pairs(block(config, /default_tier\(\) \{([\s\S]*?)\n\}/), /^\s+(\w+)\)\s+echo '([^']+)'/gm)
+check('pi-config.sh tier defaults match the engine tiers',
+  Object.keys(engineTiers).length === 3 &&
+  Object.keys(engineTiers).every(t =>
+    engineTiers[t].replace(/['\s]/g, '').split(',').join(' ') === configTiers[t]))
+
+const engineOnDemand = pairs(block(workflow, /const BASE_ON_DEMAND = \{([\s\S]*?)\n\}/), /'([^']+)':\s*'([^']+)'/g)
+const configOnDemand = Object.fromEntries(block(config, /DEFAULT_ONDEMAND='([^']+)'/).split(/\s+/).map(p => p.split(':')))
+check('pi-config.sh on-demand map matches the engine',
+  JSON.stringify(engineOnDemand) === JSON.stringify(configOnDemand))
+check('every on-demand stand-in is itself an auto model in the registry',
+  Object.values(engineOnDemand).every(to => Object.values(engineModels).includes(to) && !engineOnDemand[to]))
+check('no default tier seats an on-demand model',
+  Object.values(engineTiers).every(fams => fams.replace(/['\s]/g, '').split(',')
+    .every(f => !engineOnDemand[engineModels[f]])))
+
+// The engine cannot check an alias against the live plan (no fs, no subprocess) — pi-config.sh is
+// the ONLY validator, which is why the hard 6-model allowlist could be retired. Guard that story.
+check('pi-config.sh verifies aliases against the live plan',
+  config.includes('opencode models') && config.includes('< /dev/null') && config.includes('alias_on_plan'))
+check('the oppy relay never substitutes a model it was not asked for',
+  read('plugin/agents/oppy-reviewer.md').includes('NEVER substitute'))
+check('config is documented as the way to change models (not editing the engine)',
+  workflow.includes('Config, not sed.') && read('README.md').includes('pi-config'))
 
 // --- Agent-type namespace contract -------------------------------------------
 // A plugin's agents register as `<plugin.json name>:<agent frontmatter name>`; a bare `agentType`

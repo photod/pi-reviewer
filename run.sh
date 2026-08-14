@@ -76,18 +76,28 @@ check() {
 
   node "${REPO_DIR}/test/coverage_footer_test.mjs" || rc=1
   node "${REPO_DIR}/test/tier_contract_test.mjs" || rc=1
+  node "${REPO_DIR}/test/config_overlay_test.mjs" || rc=1
   node "${REPO_DIR}/test/agent_dispatch_test.mjs" || rc=1
   node "${REPO_DIR}/test/scaffold_sync_test.mjs" || rc=1
   PYTHONDONTWRITEBYTECODE=1 python3 "${REPO_DIR}/test/pi_mask_test.py" || rc=1
   bash "${REPO_DIR}/test/pi_filelist_test.sh" || rc=1
   bash "${REPO_DIR}/test/pi_stage_test.sh" || rc=1
+  bash "${REPO_DIR}/test/pi_config_test.sh" || rc=1
   bash "${REPO_DIR}/test/opencode_watch_test.sh" || rc=1
 
   return "${rc}"
 }
 
+# scripts/ is the canonical copy; plugin/scripts/ is what ships. `check` fails on drift — this is
+# the one-liner that fixes it, so nobody hand-copies and misses a file.
+sync() {
+  rsync -a --delete "${REPO_DIR}/scripts/" "${REPO_DIR}/plugin/scripts/"
+  log "synced plugin/scripts/ from scripts/"
+}
+
 case "${1:-check}" in
   check) check ;;
-  help|-h|--help) printf 'Usage: ./run.sh check\n' ;;
+  sync) sync ;;
+  help|-h|--help) printf 'Usage: ./run.sh [check|sync]\n' ;;
   *) warn "unknown command: ${1}"; exit 2 ;;
 esac

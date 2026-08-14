@@ -1,7 +1,7 @@
 ---
 name: pi-review
 description: Poor Intelligence, not AI ;-) — a council of cheap opencode-go models fans out; a glm-5.2 chairman reconciles ONE verdict.
-argument-hint: "[low|med(default)|high] [target] [chairman: glm-5.2(default)|opus|sonnet] [kimiMode: opencode(default)|cli|off] [agentPrefix: pi(default)|bare]"
+argument-hint: "[low|med(default)|high] [target] [chairman: glm-5.2(default)|opus|sonnet] [kimiMode: opencode(default)|cli|off] [--with <on-demand alias>] [agentPrefix: pi(default)|bare]"
 ---
 
 # /pi-review — Poor Intelligence code-review council
@@ -13,9 +13,19 @@ findings only). You orchestrate; you do NOT write the review yourself.
 
 Reconfiguration lives in a config the command reads — NOT in per-call args (those are one-off overrides).
 1. **Standing config:** if `~/.claude/pi.json` exists, read it for defaults — keys: `tier`, `chairman`,
-   `kimiMode`. This is where a host is set up ONCE (e.g. `{"kimiMode":"cli"}` to use the native
-   Kimi CLI instead of opencode-go kimi). **No file → built-in defaults** (the fridge still works):
-   `tier=med`, `chairman=glm-5.2`, `kimiMode=opencode`.
+   `kimiMode`, plus the registry overlays `models`, `tiers`, `onDemand`. This is where a host is set up
+   ONCE (e.g. `{"kimiMode":"cli"}` for the native Kimi CLI, or `{"models":{"glm":"glm-5.3"}}` to bump a
+   model). **No file → built-in defaults** (the fridge still works): `tier=med`, `chairman=glm-5.2`,
+   `kimiMode=opencode`, shipped registry and rosters.
+   - Pass `models` / `tiers` / `onDemand` straight through in the Workflow args, unchanged — the engine
+     validates them and fails LOUD on anything malformed. Do NOT silently drop a key you do not
+     recognise and do NOT "fix" a value: a config the run ignored looks exactly like one that worked.
+   - **If the file does not parse, ABORT** with the parse error and point at `/pi-config doctor`.
+     Never fall back to defaults on a corrupt config — the operator would get a panel they did not ask
+     for and no signal that their settings were skipped.
+   - Editing that file by hand is supported but unnecessary: **`/pi-config`** (or
+     `${CLAUDE_PLUGIN_ROOT}/scripts/pi-config.sh`) owns validation, including checking every alias
+     against the live plan. Never edit the engine to change a model — step 3 overwrites it.
 2. **Per-call overrides:** parse `$ARGUMENTS` and let them override the config for THIS run only — a tier
    keyword (`low`/`med`/`high`), a target (path/glob/`diff`/`branch`; default `git diff HEAD`), a chairman
    (`opus`/`sonnet`/an `opencode-go/<alias>`), a `kimiMode` (`opencode`/`cli`/`off`), an explicit
@@ -24,9 +34,21 @@ Reconfiguration lives in a config the command reads — NOT in per-call args (th
    --lens ux`). Collect them into a `lenses` array passed in the Workflow args (below); the engine adds
    them on top of the always-on default lenses and ignores unknown names with a note. Valid on-demand
    lenses: `ux`, `blastradius`, `security`, `simplicity`, `honesty` (see `lenses.md`).
+2b. **On-demand models (`--with <alias>`, repeatable).** Some models are opt-in per run — never
+   automatic — because of cost/quota/policy (`qwen3.8-max`, `kimi-k3`, `grok-4.5` by default; the map
+   lives in pi.json `onDemand`). `--with` is a REQUEST, not the consent. Before passing it on:
+   - **Get the operator's explicit confirmation in THIS run** (AskUserQuestion, or an unambiguous
+     yes already in their message). A standing config can NEVER grant this — that is precisely why
+     no such key exists. If you cannot ask, do NOT consent: pass the model and let it downgrade.
+   - On confirmation pass BOTH `extraModels: ["<alias>"]` (add the leaf) and
+     `allowOnDemand: ["<alias>"]` (the consent). Without the second the engine runs the model's
+     stand-in and reports the swap in the coverage footer — soft-degrade, never silent.
+   - Same gate for a chairman or a configured family that resolves to an on-demand model:
+     `allowOnDemand` is the only unlock, and only for that one run.
 
-Tiers: `low` = 3 cheap models · `med` = glm + qwen + kimi (default) · `high` = all 6 + high-effort synth
-(`max` / `ultra` are accepted as aliases for `high` — people forget which word is the top).
+Tiers (DEFAULTS — reconfigurable per host in pi.json, see `/pi-config`): `low` = deepseek + mimo +
+qwen · `med` (default) = glm + qwen + deepseek + kimi · `high` = all six + kimi + high-effort synth.
+(`max` / `ultra` are accepted as aliases for `high` — people forget which word is the top.)
 
 ## Housekeeping asks (preview masking) — handle in chat, no council
 
@@ -63,7 +85,9 @@ Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by de
    operator this one screen (then create that marker file and never repeat it):
    > **PI, first run — what's in the box:**
    > - Tiers `low|med|high` — and `max`/`ultra` if you forget which word is the top; optional
-   >   `[target] [chairman] [kimiMode]` per run, standing defaults in `~/.claude/pi.json`.
+   >   `[target] [chairman] [kimiMode]` per run.
+   > - **`/pi-config`** — change anything for good: which models the panel runs, who reviews at each
+   >   tier, where Kimi runs, who chairs. `/pi-config doctor` checks it all against your live plan.
    > - **Masking is ON at every scope** — diffs, named files, and whole repos all go through the
    >   secret masker before any model sees your code. Only an explicit `mode=yolo` sends raw.
    > - Ask in chat: *"what would PI mask in `<path>`?"* — instant preview, nothing is sent.
@@ -125,7 +149,7 @@ Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by de
    ```
    Workflow({
      scriptPath: "~/.claude/workflows/pi-council.js",
-     args: { tier, target, workdir: <cwd or the target's dir>, chairmanModel, kimiMode, mode, agentPrefix, ...(fileList ? {fileList} : {}), ...(dropped ? {dropped} : {}), ...(lenses && lenses.length ? {lenses} : {}) }
+     args: { tier, target, workdir: <cwd or the target's dir>, chairmanModel, kimiMode, mode, agentPrefix, ...(models ? {models} : {}), ...(tiers ? {tiers} : {}), ...(onDemand ? {onDemand} : {}), ...(extraModels && extraModels.length ? {extraModels} : {}), ...(allowOnDemand && allowOnDemand.length ? {allowOnDemand} : {}), ...(fileList ? {fileList} : {}), ...(dropped ? {dropped} : {}), ...(lenses && lenses.length ? {lenses} : {}) }
    })
    ```
    Pass `mode` (diff/feature/list/pack/curated/yolo — default `diff` for non-whole-repo) so the coverage

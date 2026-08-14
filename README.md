@@ -41,24 +41,78 @@ PI targets Claude Code, and only Claude Code. I did try to build a Codex edition
 
 The three tiers, spelled out:
 
-- **low** — a quick pass with three reviewers; cheap and fast, the one for a routine diff. (MiniMax-M3, DeepSeek-V4-Pro, MiMo-V2.5-Pro.)
-- **med** *(default)* — three reviewers with a better spread; the one you'll reach for most days. (GLM-5.2, Qwen3.7-Max, Kimi K2.7-Code.)
+- **low** — a quick pass with three reviewers; fast, the one for a routine diff. (DeepSeek-V4-Pro, MiMo-V2.5-Pro, Qwen3.7-Max.)
+- **med** *(default)* — four reviewers with a better spread; the one you'll reach for most days. (GLM-5.2, Qwen3.7-Max, DeepSeek-V4-Pro, Kimi K2.7-Code.)
 - **high** — all six reviewers plus a heavier reconciliation pass by the chairman, for a pre-merge audit or a change that scares you.
 
 (`max` and `ultra` also work — both map to `high`, for anyone who forgets which word is the top.)
 
-Why those six and not some other set? Nothing handed me the list — it's the combination I've landed on and trust. Each one is strong on its own, and, more to the point, they're different enough that they don't all trip on the same things. Six great models that think alike would be worth one. These six disagree, usefully. That's why they're the ones.
+Why those six and not some other set? Nothing handed me the list — it's the combination I've landed on and trust. Each one is strong on its own, and, more to the point, they're different enough that they don't all trip on the same things. Six great models that think alike would be worth one. These six disagree, usefully. That's why they're the ones. Who sits at which tier is a *default*, not a verdict — the rosters above are what I'd pick, and one command moves them.
 
 ## Changing the defaults
 
-Nothing to set up to get going. For different defaults for good, drop a `~/.claude/pi.json`:
+Nothing to set up to get going. When you do want something different, it all lives in one file —
+`~/.claude/pi.json` — and one command writes it:
 
-```json
-{ "tier": "med", "chairman": "glm-5.2", "kimiMode": "opencode" }
+```
+/pi-config                          what am I running right now?
+/pi-config model glm glm-5.3        bump a model
+/pi-config tier low deepseek mimo   who reviews at low
+/pi-config set kimiMode cli         run Kimi through your own CLI instead
+/pi-config set chairman opus        seat someone else in the chair
+/pi-config doctor                   is any of this actually going to work?
 ```
 
+Same thing from a shell, if you'd rather not go through Claude: `scripts/pi-config.sh show`,
+`… model glm glm-5.3`, `… doctor`. Both write the same file; the file is plain JSON you can edit by
+hand too.
+
+```json
+{
+  "tier": "med",
+  "chairman": "glm",
+  "kimiMode": "opencode",
+  "models": { "glm": "glm-5.3" },
+  "tiers":  { "low": ["deepseek", "mimo", "qwen"] }
+}
+```
+
+Every key is optional and overrides sparsely — set one model, inherit the rest. Per-run arguments
+still win over the file.
+
+**Do not edit the engine to change a model.** `pi-council.js` gets force-copied over the installed
+copy whenever the plugin's version differs, so a hand-edit there is wiped on the next run. That's the
+reason this config exists.
+
+**`doctor` is worth knowing about.** An off-plan model alias doesn't fail fast — it *hangs* until the
+leaf watchdog kills it, ten minutes later, and all you see is `UNAVAILABLE`. So every alias is checked
+against your live `opencode models` list at the moment you write it, and `doctor` re-checks the whole
+file whenever you want: models, tier rosters, the chairman, whether the `kimi` CLI is actually on your
+PATH. If a review ever comes back with a panel full of holes, run it first.
+
 The chairman defaults to GLM-5.2 — cheap to run, frontier-league in ability, and reconciling a stack of
-reviews is well within it. Claude can also seat `opus` or `sonnet` in the chair. Per-run arguments win.
+reviews is well within it. Claude can also seat `opus` or `sonnet` in the chair.
+
+### Models you have to ask for
+
+A few models on the plan are **opt-in per run** — cost, quota, or policy makes "always on" the wrong
+default. Out of the box: `qwen3.8-max`, `kimi-k3`, and `grok-4.5`. The council never reaches for one
+on its own. If something resolves to one anyway — you pinned it, or seated it as chairman — it runs
+the stand-in instead and tells you so in the coverage footer:
+
+```
+coverage: diff · 4/4 leaves OK · 1 DOWNGRADED on-demand (kimi-k3→kimi-k2.7-code)
+```
+
+To actually use one, name it on the run and confirm when asked:
+
+```
+/pi-review high --with grok-4.5
+```
+
+Consent is per run and deliberately *cannot* be stored — a config line saying "always use Grok" would
+be exactly the automatic use the gate exists to prevent. The downgrade map itself is configurable
+(`/pi-config ondemand <alias> <stand-in>`), including retiring an entry entirely.
 
 `kimiMode` deserves a word, because Kimi is the one panel model with two homes. Every other reviewer is
 reachable only through opencode-go, but Kimi K2.7-Code also has a standalone `kimi` CLI with its own
@@ -66,7 +120,12 @@ separate subscription. So the Kimi leaf (it joins at `med`/`high`) can be served
 
 - `"opencode"` *(default)* — Kimi runs through opencode-go like every other leaf: one plan, one quota pool, zero extra setup.
 - `"cli"` — Kimi runs through the standalone `kimi` CLI instead. Pick this if you pay for Kimi separately (its own quota, not your opencode-go pool), or if your opencode-go plan doesn't carry Kimi.
-- `"off"` — drop the Kimi leaf entirely; `med` becomes a GLM + Qwen pair.
+- `"off"` — drop the Kimi leaf entirely; `med` falls back to its three opencode-go reviewers.
+
+On the opencode-go side the Kimi leaf is **Kimi K2.7-Code**, the code-specialised one, and it stays
+that even though a newer K3 sits on the same plan — K3 is on-demand, and asking for it without
+confirming gets you K2.7-Code back. `/pi-config tier <name> --kimi on|off` moves the leaf between
+tiers if `med`/`high` isn't where you want it.
 
 No other model has a mode because no other model has a second backend — there'd be nothing to choose.
 
