@@ -35,7 +35,9 @@ invokes your local, authenticated `codex`.
 Then spawn `cody:cody-reviewer` (read-only 2nd opinion) or `cody:cody-worker` (write mode) as a subagent
 — installed as this plugin, Claude registers both under the `cody:` namespace. Drop the prefix
 (`cody-reviewer` / `cody-worker`) only if you installed the agent `.md` files straight into
-`~/.claude/agents/` instead. Using the wrong form fails with "agent not found", not with a bad review.
+`~/.claude/agents/` instead. The `cody:` forms also disappear if the plugin is installed but toggled
+**off** (`"cody@pi-reviewer": false` under `enabledPlugins` in `~/.claude/settings.json`).
+Using the wrong form fails with "agent not found", not with a bad review.
 
 ## Honest caveats
 
