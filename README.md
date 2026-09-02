@@ -58,7 +58,7 @@ Nothing to set up to get going. When you do want something different, it all liv
 /pi-config                          what am I running right now?
 /pi-config model minimax minimax-m2.7    pin a model to a version
 /pi-config tier low deepseek mimo   who reviews at low
-/pi-config set kimiMode cli         run Kimi through your own CLI instead
+/pi-config tier high --kimi-cli on  add your own Kimi CLI (K3) as an extra leaf
 /pi-config set chairman opus        seat someone else in the chair
 /pi-config doctor                   is any of this actually going to work?
 ```
@@ -71,9 +71,9 @@ hand too.
 {
   "tier": "med",
   "chairman": "glm",
-  "kimiMode": "opencode",
+  "kimiCliModel": "kimi-code/k3-256k",
   "models": { "minimax": "minimax-m2.7" },
-  "tiers":  { "low": ["deepseek", "mimo", "qwen"] }
+  "tiers":  { "low": ["deepseek", "mimo", "qwen"], "high": { "kimiCli": true } }
 }
 ```
 
@@ -102,42 +102,62 @@ default. Out of the box:
 |---|---|
 | `glm-5.3` | `glm-5.2` |
 | `qwen3.8-max` | `qwen3.7-max` |
-| `kimi-k3` | `kimi-k2.7-code` |
-| `grok-4.5` | `gpt-5.6-luna` |
 
 The council never reaches for one on its own. If something resolves to one anyway — you pinned it, or
 seated it as chairman — it runs the stand-in instead and tells you so in the coverage footer:
 
 ```
-coverage: diff · 4/4 leaves OK · 1 DOWNGRADED on-demand (kimi-k3→kimi-k2.7-code)
+coverage: diff · 4/4 leaves OK · 1 DOWNGRADED on-demand (glm-5.3→glm-5.2)
 ```
 
 To actually use one, name it on the run and confirm when asked:
 
 ```
-/pi-review high --with grok-4.5
+/pi-review high --with glm-5.3
 ```
 
-Consent is per run and deliberately *cannot* be stored — a config line saying "always use Grok" would
-be exactly the automatic use the gate exists to prevent. The downgrade map itself is configurable
-(`/pi-config ondemand <alias> <stand-in>`), including retiring an entry entirely.
+Consent is per run and deliberately *cannot* be stored — a config line saying "always use the pricey
+one" would be exactly the automatic use the gate exists to prevent. The downgrade map itself is
+configurable (`/pi-config ondemand <alias> <stand-in>`), including retiring an entry entirely.
 
-`kimiMode` deserves a word, because Kimi is the one panel model with two homes. Every other reviewer is
-reachable only through opencode-go, but Kimi K2.7-Code also has a standalone `kimi` CLI with its own
-separate subscription. So the Kimi leaf (it joins at `med`/`high`) can be served three ways:
+### Models you can't ask for
 
-- `"opencode"` *(default)* — Kimi runs through opencode-go like every other leaf: one plan, one quota pool, zero extra setup.
-- `"cli"` — Kimi runs through the standalone `kimi` CLI instead. Pick this if you pay for Kimi separately (its own quota, not your opencode-go pool), or if your opencode-go plan doesn't carry Kimi.
-- `"off"` — drop the Kimi leaf entirely; `med` falls back to its three opencode-go reviewers.
+Two vendors are barred on the Go plan outright, and no `--with` unlocks them. They are **substituted**,
+never refused outright — the panel keeps its width, and the swap shows up in the footer:
 
-On the opencode-go side the Kimi leaf is **Kimi K2.7-Code**, the code-specialised one, and it stays
-that even though a newer K3 sits on the same plan — K3 is on-demand, and asking for it without
-confirming gets you K2.7-Code back. `/pi-config tier <name> --kimi on|off` moves the leaf between
-tiers if `med`/`high` isn't where you want it.
+| Barred | Becomes | Why |
+|---|---|---|
+| any `grok-*` | `gpt-5.6-luna` | priced far above what a Poor-Intelligence council is for |
+| any `kimi-*` except `kimi-k2.7-code` | `kimi-k2.7-code` | K3 belongs to the `kimi-reviewer` CLI leaf, on *your* subscription — not the shared Go pool |
 
-No other model has a mode because no other model has a second backend — there'd be nothing to choose.
+These rules name the **vendor**, not the version, and that's the point: `grok-4.5` was once pinned by
+version, the plan moved to `grok-4.6`, and the successor would have sailed straight through. Now
+whatever xAI ships next is caught the day it appears.
 
-> 🎁 **A bit of fun — a clearly-labelled referral.** `kimiMode: "cli"` means your own Kimi account, and
+### The two Kimis
+
+Kimi is the one vendor with two homes, so PI gives it two clearly separate seats and never lets them
+share a name:
+
+- **`kimicode`** — `opencode-go/kimi-k2.7-code`, the code-specialised one. An *ordinary* family: it sits
+  in `med` and `high` alongside glm and qwen, runs through the same `oppy-reviewer` path, and spends the
+  same shared Go-plan quota. Nothing to configure.
+- **`kimi-reviewer`** — **K3** (`kimi-code/k3-256k`) through the standalone `kimi` CLI, on *your own*
+  Kimi subscription and quota. It is a separate leaf, **off in every shipped tier**, switched on per
+  tier: `/pi-config tier high --kimi-cli on`. Pin a different CLI model with
+  `/pi-config set kimiCliModel <alias>`.
+
+They can both run on the same panel. Worth knowing what that buys you: two *quota pools*, so one
+draining doesn't blank the slot — but not extra vendor diversity, because both are Moonshot. Weigh
+them as one lab's voice when you read the verdict.
+
+Panel labels keep them apart on purpose — `kimi-k2.7-code` next to `kimi-cli:k3-256k` — so the chairman
+can't quietly fold two different models into one "Kimi said".
+
+One namespace trap: the same K3 is `kimi-code/k3-256k` to the CLI and `kimi-for-coding/k3-256k` to
+opencode. `kimiCliModel` wants the **CLI** spelling; `/pi-config` rejects the other one by name.
+
+> 🎁 **A bit of fun — a clearly-labelled referral.** The `kimi-reviewer` leaf means your own Kimi account, and
 > honestly its **K3** model is a treat: 1M-context, and it accompanies Opus and Fable wonderfully whether
 > it's chairing or on the panel. If you're signing up anyway, here's my Kimi referral (invitation code
 > **`PYDR92`**): https://kimi-bot.com/activities/viral-referral/share?scenario=invite&from=share_poster&invitation_code=PYDR92

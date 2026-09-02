@@ -36,13 +36,17 @@ const base = { target: 'x', workdir: '/tmp/x' }
 
 // --- Defaults ------------------------------------------------------------------------------------
 const def = await runEngine({ ...base, tier: 'med' })
-check('med default panel is glm + qwen + deepseek + kimi',
-  def.leaves.join(',') === 'opencode-go/glm-5.2,opencode-go/qwen3.7-max,opencode-go/deepseek-v4-pro,opencode-go/kimi-k2.7-code')
+check('med default panel is glm + qwen + deepseek + kimicode',
+  def.leaves.join(',') === 'opencode-go/glm-5.2,opencode-go/qwen3.7-max,opencode-go/deepseek-v4-flash,opencode-go/kimi-k2.7-code')
 check('low default panel drops minimax and keeps deepseek',
   (await runEngine({ ...base, tier: 'low' })).leaves.join(',') ===
-  'opencode-go/deepseek-v4-pro,opencode-go/mimo-v2.5-pro,opencode-go/qwen3.7-max')
-check('high default panel is all six + kimi',
-  (await runEngine({ ...base, tier: 'high' })).leaves.length === 6)
+  'opencode-go/deepseek-v4-flash,opencode-go/mimo-v2.5-pro,opencode-go/qwen3.7-max')
+check('high default panel is every family except luna',
+  (await runEngine({ ...base, tier: 'high' })).leaves.length === 7)
+// kimicode is an ORDINARY family now — it must fan out through oppy like any other leaf, NOT through
+// the kimi-reviewer CLI agent. If this ever regresses, the panel silently loses its Go-plan Kimi.
+check('the Go-plan kimi rides the oppy path, not the CLI agent',
+  def.leaves.includes('opencode-go/kimi-k2.7-code'))
 check('a clean run reports no downgrades in the footer',
   !def.result.coverage.includes('DOWNGRADED') && def.result.downgraded.length === 0)
 
@@ -68,10 +72,20 @@ check('models given as a list, not an object, throws',
 check('tiers overlay replaces a tier roster',
   (await runEngine({ ...base, tier: 'low', tiers: { low: ['glm', 'mimo'] } })).leaves.join(',') ===
   'opencode-go/glm-5.2,opencode-go/mimo-v2.5-pro')
-check('tiers overlay can move the kimi leaf onto low',
-  (await runEngine({ ...base, tier: 'low', tiers: { low: { families: ['glm'], kimi: true } } })).leaves.length === 2)
-check('tiers overlay can turn the kimi leaf off at med',
-  (await runEngine({ ...base, tier: 'med', tiers: { med: { families: ['glm'], kimi: false } } })).leaves.length === 1)
+// The CLI leaf is a kimi-reviewer agent, not an oppy leaf, so it never shows up in `leaves` — count
+// the labelled call instead. That separation IS the feature: two Kimis, two routes, two labels.
+const withCli = await runEngine({ ...base, tier: 'low', tiers: { low: { families: ['glm'], kimiCli: true } } })
+check('kimiCli adds the CLI leaf without touching the oppy panel',
+  withCli.leaves.join(',') === 'opencode-go/glm-5.2' &&
+  withCli.calls.some(c => String(c.label || '').startsWith('kimi-cli:')))
+check('the CLI leaf label names the model, so the chairman cannot confuse the two Kimis',
+  withCli.calls.some(c => String(c.label || '') === 'kimi-cli:k3-256k'))
+check('kimiCli is off in every shipped tier (it spends the operator personal quota)',
+  !def.calls.some(c => String(c.label || '').startsWith('kimi-cli:')))
+check('the retired per-tier kimi switch throws rather than moving the wrong leaf',
+  /retired 'kimi' switch/.test(await throws({ ...base, tiers: { low: { families: ['glm'], kimi: true } } })))
+check('the retired kimiMode arg throws rather than being silently ignored',
+  /kimiMode' is retired/.test(await throws({ ...base, kimiMode: 'cli' })))
 check('an unknown family in a tier throws (a leaf with no model)',
   /unknown model family/.test(await throws({ ...base, tiers: { low: ['nosuch'] } })))
 check('an empty tier throws (a tier with no reviewers is not a review)',
@@ -98,32 +112,58 @@ check('explicit per-run consent runs the real on-demand model',
 check('consent does not leak into the footer as a downgrade',
   !consented.result.coverage.includes('DOWNGRADED'))
 
-check('kimi-k3 downgrades to the code-specialised K2.7 leaf',
-  (await runEngine({ ...base, tier: 'med', models: { kimi: 'kimi-k3' } })).leaves.includes('opencode-go/kimi-k2.7-code'))
+// --- never on the Go plan (stronger than on-demand: consent cannot unlock it) ---------------------
+check('kimi-k3 is substituted by the code-specialised K2.7 leaf',
+  (await runEngine({ ...base, tier: 'med', models: { kimicode: 'kimi-k3' } })).leaves.includes('opencode-go/kimi-k2.7-code'))
+check('the bar is by VENDOR, not by version — an unheard-of kimi is substituted too',
+  (await runEngine({ ...base, tier: 'med', models: { kimicode: 'kimi-k9-turbo' } })).leaves.includes('opencode-go/kimi-k2.7-code'))
+check('consent does NOT unlock a barred kimi',
+  !(await runEngine({ ...base, tier: 'med', models: { kimicode: 'kimi-k3' }, allowOnDemand: ['kimi-k3'] }))
+    .leaves.includes('opencode-go/kimi-k3'))
+// The permitted member must stay runnable — otherwise the vendor rule would eat its own stand-in.
+check('the permitted kimi is exempt from its own vendor rule',
+  def.result.downgraded.length === 0)
 
-const grok = await runEngine({ ...base, tier: 'low', extraModels: ['grok-4.5'] })
-check('an extra on-demand leaf without consent runs its stand-in (grok → luna)',
-  grok.leaves.includes('opencode-go/gpt-5.6-luna') && !grok.leaves.includes('opencode-go/grok-4.5'))
+const grok = await runEngine({ ...base, tier: 'low', extraModels: ['grok-4.6'] })
+check('a barred grok leaf runs its stand-in (grok → luna)',
+  grok.leaves.includes('opencode-go/gpt-5.6-luna') && !grok.leaves.includes('opencode-go/grok-4.6'))
 check('extraModels adds a leaf ON TOP of the tier',
   grok.leaves.length === 4)
-check('a confirmed extra leaf runs the real model',
-  (await runEngine({ ...base, tier: 'low', extraModels: ['grok-4.5'], allowOnDemand: ['grok-4.5'] }))
-    .leaves.includes('opencode-go/grok-4.5'))
+// The point of the whole table: --with is not a key to grok. A version bump must not become one either.
+check('consent does NOT unlock grok — it is priced out of the Go plan, period',
+  !(await runEngine({ ...base, tier: 'low', extraModels: ['grok-4.6'], allowOnDemand: ['grok-4.6'] }))
+    .leaves.includes('opencode-go/grok-4.6'))
+check('a NEWER grok is barred too — the rule names the vendor, not the version',
+  !(await runEngine({ ...base, tier: 'low', extraModels: ['grok-5'], allowOnDemand: ['grok-5'] }))
+    .leaves.includes('opencode-go/grok-5'))
+check('a refused consent is reported, so --with never looks like it worked',
+  (await runEngine({ ...base, tier: 'low', extraModels: ['grok-4.6'], allowOnDemand: ['grok-4.6'] }))
+    .logs.some(l => /REFUSED/.test(String(l))))
+check('a lookalike vendor is NOT caught by the bar (segment boundary, not prefix)',
+  (await runEngine({ ...base, tier: 'low', models: { grokkish: 'grokkish-1' }, tiers: { low: ['grokkish'] } }))
+    .leaves.join(',') === 'opencode-go/grokkish-1')
 check('an unknown extraModel throws rather than hanging a leaf on an off-plan alias',
   /unknown model/.test(await throws({ ...base, extraModels: ['gpt-9'] })))
 
 // The chair reconciles the whole panel — an unconfirmed on-demand chairman must stand down too.
-const chair = await runEngine({ ...base, tier: 'low', chairmanModel: 'grok-4.5' })
+const chair = await runEngine({ ...base, tier: 'low', chairmanModel: 'qwen3.8-max' })
 check('an unconfirmed on-demand chairman is downgraded to its stand-in',
-  chair.result.chairman === 'opencode-go/gpt-5.6-luna')
+  chair.result.chairman === 'opencode-go/qwen3.7-max')
 check('a confirmed on-demand chairman is seated',
-  (await runEngine({ ...base, tier: 'low', chairmanModel: 'grok-4.5', allowOnDemand: ['grok-4.5'] })).result.chairman ===
-  'opencode-go/grok-4.5')
+  (await runEngine({ ...base, tier: 'low', chairmanModel: 'qwen3.8-max', allowOnDemand: ['qwen3.8-max'] })).result.chairman ===
+  'opencode-go/qwen3.8-max')
+check('a BARRED chairman stands down even when confirmed',
+  (await runEngine({ ...base, tier: 'low', chairmanModel: 'grok-4.6', allowOnDemand: ['grok-4.6'] })).result.chairman ===
+  'opencode-go/gpt-5.6-luna')
 check('an Anthropic chairman is untouched by the gate',
   (await runEngine({ ...base, tier: 'low', chairmanModel: 'opus' })).result.chairman === 'opus')
 
 check('a downgrade CHAIN in onDemand config throws (a stand-in must be an auto model)',
-  /chain/.test(await throws({ ...base, onDemand: { 'glm-5.1': 'kimi-k3' } })))
+  /chain/.test(await throws({ ...base, onDemand: { 'glm-5.1': 'qwen3.8-max' } })))
+check('a neverOnGo fallback that is itself on-demand throws',
+  /always runs|on-demand/.test(await throws({ ...base, neverOnGo: { acme: 'qwen3.8-max' } })))
+check('a neverOnGo fallback barred by ANOTHER vendor rule throws',
+  /barred/.test(await throws({ ...base, neverOnGo: { acme: 'grok-9' } })))
 check('an on-demand model standing in for itself throws',
   /itself|stand-in/.test(await throws({ ...base, onDemand: { 'glm-5.1': 'glm-5.1' } })))
 
@@ -151,6 +191,6 @@ check('stray consent is noted and ignored, never fatal',
 
 // The panel roster must be legible without reading prompts — operators diagnose from this line.
 check('the engine logs the resolved panel',
-  def.logs.some(l => /^panel: /.test(l)) && def.result.panel.join(',') === 'glm-5.2,qwen3.7-max,deepseek-v4-pro')
+  def.logs.some(l => /^panel: /.test(l)) && def.result.panel.join(',') === 'glm-5.2,qwen3.7-max,deepseek-v4-flash,kimi-k2.7-code')
 
 process.exit(ok ? 0 : 1)

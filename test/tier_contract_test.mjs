@@ -19,8 +19,8 @@ check('engine self-install refreshes on upgrade (not copy-if-absent)', review.in
 check('build command exposes exact tiers', build.includes('[low|med(default)|high]'))
 check('workflow defaults to med', workflow.includes("A.tier || 'med'"))
 check('workflow low panel preserved', workflow.includes("low:  { families: ['deepseek', 'mimo', 'qwen']"))
-check('workflow med panel preserved', workflow.includes("med:  { families: ['glm', 'qwen', 'deepseek'], kimi: true, effort: 'medium'"))
-check('workflow high panel preserved', workflow.includes("high: { families: ['glm', 'qwen', 'minimax', 'deepseek', 'mimo']"))
+check('workflow med panel preserved', workflow.includes("med:  { families: ['glm', 'qwen', 'deepseek', 'kimicode'], kimiCli: false, effort: 'medium'"))
+check('workflow high panel preserved', workflow.includes("high: { families: ['glm', 'qwen', 'minimax', 'deepseek', 'mimo', 'kimicode', 'hy']"))
 check('workflow maps max/ultra aliases to high',
   workflow.includes("rawTier === 'max' || rawTier === 'ultra'") && workflow.includes('use low, med, or high'))
 check('builder provider mapping is coherent',
@@ -80,7 +80,11 @@ check('config is documented as the way to change models (not editing the engine)
 // caller-supplied prefix, agent names matching the shipped .md files, and the default prefix equal
 // to this plugin's own name.
 const agentTypes = [...workflow.matchAll(/agentType:\s*([^,}]+)/g)].map(m => m[1].trim())
-check('engine spawns at least one agent by agentType', agentTypes.length >= 4)
+// Three dispatch sites exactly: the oppy leaf fan-out, the Kimi CLI leaf, and the cheap chairman's
+// synthesis. (It was four until the Go-plan Kimi stopped being a special-cased leaf and became the
+// ordinary `kimicode` family, which rides the oppy fan-out.) A count of zero would mean the engine
+// stopped dispatching by agentType at all — the regression this whole block exists to catch.
+check('engine spawns every agent through an agentType constant', agentTypes.length === 3)
 check('no engine agentType is a bare quoted literal (must go through AGENT_PREFIX)',
   agentTypes.every(t => t === 'OPPY_AGENT' || t === 'KIMI_AGENT'))
 check('agent-type constants are built from the caller-supplied prefix',

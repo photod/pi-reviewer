@@ -22,17 +22,21 @@ if (!A || typeof A !== 'object' || Array.isArray(A)) A = {}  // JSON.parse('null
 // --- Model registry — DEFAULTS, overlaid by pi.json `models` -----------------
 // family → the opencode-go alias we run for it. A version string lives in exactly ONE place per
 // family; the host overrides any of them in pi.json (`"models": {"glm": "glm-5.3"}`) and every tier,
-// the chairman, the kimi leaf and alias resolution follow. 'kimi' is the code-specialised leaf.
-// 'luna' is in NO tier by default — it exists as the auto-downgrade target for on-demand grok-4.5
-// (see ON_DEMAND) and as a nameable chairman. (cody/codex is intentionally NOT a family — operator
-// spec 2026-07-11.)
+// the chairman and alias resolution follow. 'kimicode' is the code-specialised Kimi on the Go plan
+// (kimi-k2.7-code) and is an ORDINARY family — it fans out through oppy-reviewer like every other.
+// It is deliberately NOT called 'kimi': the separate `kimi-reviewer` CLI leaf below runs a DIFFERENT
+// Kimi (K3, on the operator's own subscription), and one shared name for two models is exactly the
+// confusion the labels exist to prevent. 'luna' is in NO tier by default — it exists as the
+// stand-in every barred grok becomes (see BASE_NEVER_ON_GO) and as a nameable chairman.
+// (cody/codex is intentionally NOT a family — operator spec 2026-07-11.)
 const BASE_MODELS = {
   glm:      'opencode-go/glm-5.2',
   qwen:     'opencode-go/qwen3.7-max',
   minimax:  'opencode-go/minimax-m3',
-  deepseek: 'opencode-go/deepseek-v4-pro',
+  deepseek: 'opencode-go/deepseek-v4-flash',
   mimo:     'opencode-go/mimo-v2.5-pro',
-  kimi:     'opencode-go/kimi-k2.7-code',
+  kimicode: 'opencode-go/kimi-k2.7-code',
+  hy:       'opencode-go/hy4-preview',
   luna:     'opencode-go/gpt-5.6-luna',
 }
 // Normalize a model token to a full `opencode-go/<alias>`: strips a leading provider prefix, quotes
@@ -84,10 +88,30 @@ const MODELS = mergeModels(BASE_MODELS, A.models)
 // Keyed bare alias → bare alias of the stand-in.
 const BASE_ON_DEMAND = {
   'qwen3.8-max': 'qwen3.7-max',
-  'kimi-k3': 'kimi-k2.7-code',
-  'grok-4.5': 'gpt-5.6-luna',
   'glm-5.3': 'glm-5.2',   // costs a fortune on the Go plan — the flagship stays 5.2 unless confirmed
 }
+// --- Never on the Go plan — substituted ALWAYS, consent cannot unlock it ----
+// Stronger than on-demand, and deliberately not the same mechanism: on-demand asks, this one simply
+// does not run here. Keyed by VENDOR rather than alias, because pinning a version is what rotted last
+// time — `grok-4.5` was pinned, the plan moved to `grok-4.6`, and the successor would have sailed
+// through ungated. So the rule names the brand and lets versions come and go. Matching is on a
+// SEGMENT boundary: `grok` catches `grok`, `grok-4.6`, `grok-code-fast` — never `grokkish-1`.
+// The value is the vendor's ONE permitted alias; every other alias under that name becomes it.
+// This is a SUBSTITUTION, never a throw and never a silent drop: the panel keeps its width and the
+// swap is reported in the coverage footer, so the operator sees what actually ran.
+const BASE_NEVER_ON_GO = {
+  // Grok is priced far above what a "Poor Intelligence" council is for — it must never run on the Go
+  // plan, not even when explicitly confirmed. Operator directive 2026-09-02.
+  grok: 'gpt-5.6-luna',
+  // Any Go-plan kimi other than k2.7-code — k2.6, k3, whatever ships next — becomes k2.7-code. K3
+  // especially: the council already reaches K3 by a better route (the kimi-reviewer CLI leaf, on the
+  // operator's OWN subscription), so running it here would spend council quota on a model the CLI
+  // already provides and put two near-identical Kimis on one panel.
+  kimi: 'kimi-k2.7-code',
+}
+// A family rule matches the alias itself or anything under it, on a SEGMENT boundary only — a bare
+// prefix test would swallow unrelated models that merely start with the same letters.
+const matchesVendor = (bare, key) => bare === key || bare.startsWith(`${key}-`) || bare.startsWith(`${key}.`)
 // A downgrade target that is ITSELF on-demand would chain (or loop) — reject at merge time rather
 // than resolve it at use time, so the map is provably one hop.
 function mergeOnDemand(base, override) {
@@ -110,7 +134,41 @@ function mergeOnDemand(base, override) {
   }
   return out
 }
+// Same merge shape as the on-demand table, different KEY: a vendor name, not an alias.
+function mergeNeverOnGo(base, override) {
+  const out = { ...base }
+  if (override != null) {
+    if (typeof override !== 'object' || Array.isArray(override)) {
+      throw new Error(`invalid 'neverOnGo' config — expected an object of vendor-prefix → replacement alias, e.g. {"grok": "gpt-5.6-luna"}`)
+    }
+    for (const key of Object.keys(override)) {
+      const fam = String(key).trim().toLowerCase().replace(/^opencode-go\//, '')
+      const to = normAlias(override[key])
+      if (!/^[a-z][a-z0-9-]*$/.test(fam)) throw new Error(`invalid vendor '${key}' in 'neverOnGo' config — use a vendor name like 'grok'`)
+      if (!to) throw new Error(`invalid replacement for never-on-Go vendor '${fam}': ${JSON.stringify(override[key])} — every barred vendor needs a stand-in that DOES run`)
+      out[fam] = to.replace('opencode-go/', '')
+    }
+  }
+  return out
+}
 const ON_DEMAND = mergeOnDemand(BASE_ON_DEMAND, A.onDemand)
+const NEVER_ON_GO = mergeNeverOnGo(BASE_NEVER_ON_GO, A.neverOnGo)
+// The replacement must itself be runnable, or the substitution just moves the problem: it may not be
+// barred by ANOTHER vendor rule, and may not be on-demand (that would need a consent this path can
+// never ask for). Its own rule does not count — the replacement IS that vendor's permitted member.
+for (const [fam, standIn] of Object.entries(NEVER_ON_GO)) {
+  if (ON_DEMAND[standIn]) throw new Error(`never-on-Go vendor '${fam}' falls back to '${standIn}', which is itself on-demand — the fallback must be a model that always runs`)
+  const barredBy = Object.keys(NEVER_ON_GO).find(f => f !== fam && standIn !== NEVER_ON_GO[f] && matchesVendor(standIn, f))
+  if (barredBy) throw new Error(`never-on-Go vendor '${fam}' falls back to '${standIn}', which is itself barred by the '${barredBy}' rule`)
+}
+// The vendor's ONE permitted alias — everything else under that name is substituted for it.
+function neverOnGoReplacement(bare) {
+  for (const fam of Object.keys(NEVER_ON_GO)) {
+    const standIn = NEVER_ON_GO[fam]
+    if (bare !== standIn && matchesVendor(bare, fam)) return standIn
+  }
+  return null
+}
 // Per-run consent (never config): the aliases the operator explicitly confirmed for THIS run.
 // Unknown entries are ignored with a note rather than thrown — consent for a model that is no longer
 // on-demand is harmless, and a stale flag must not abort a review (config errors above DO throw).
@@ -119,23 +177,31 @@ const consentedOnDemand = new Set(
     .map(t => String(t).trim().toLowerCase().replace(/^opencode-go\//, ''))
     .filter(Boolean)
 )
-const strayConsent = [...consentedOnDemand].filter(a => !ON_DEMAND[a])
+const strayConsent = [...consentedOnDemand].filter(a => !ON_DEMAND[a] && !neverOnGoReplacement(a))
+// Consent for a barred vendor is not stray — it was understood, and REFUSED. Called out separately so
+// `--with grok-4.6` never looks like it worked.
+const refusedConsent = [...consentedOnDemand].filter(a => neverOnGoReplacement(a))
 // PURE: given an alias, returns the alias to actually run plus the swap note (null when untouched).
-function gateOnDemand(alias, consented, table) {
+// ORDER MATTERS. The never-on-Go substitution runs FIRST and ignores consent — that is the whole
+// difference between the two tables, and checking consent first would hand `--with grok-4.6` the
+// unlock it must never get. Only then does the consent-unlockable on-demand table get a say.
+function gateOnDemand(alias, consented, onDemandTable, barred) {
   const bare = String(alias).replace(/^opencode-go\//, '')
-  const to = table[bare]
+  const forced = barred(bare)
+  if (forced) return { alias: `opencode-go/${forced}`, swap: `${bare}→${forced}` }
+  const to = onDemandTable[bare]
   if (!to || consented.has(bare)) return { alias: `opencode-go/${bare}`, swap: null }
   return { alias: `opencode-go/${to}`, swap: `${bare}→${to}` }
 }
 const downgrades = []   // swap notes for models actually USED this run — surfaced in the footer
 function gate(alias) {
-  const g = gateOnDemand(alias, consentedOnDemand, ON_DEMAND)
+  const g = gateOnDemand(alias, consentedOnDemand, ON_DEMAND, neverOnGoReplacement)
   if (g.swap && downgrades.indexOf(g.swap) === -1) downgrades.push(g.swap)
   return g.alias
 }
 
 // Resolve any model token → a full opencode-go alias, most-specific first: a full alias
-// ('opencode-go/glm-5.2'), a BARE alias ('glm-5.2'), or a FAMILY alias ('glm', 'kimi', 'qwen'…).
+// ('opencode-go/glm-5.2'), a BARE alias ('glm-5.2'), or a FAMILY alias ('glm', 'kimicode', 'qwen'…).
 // Forward-compatible: 'glm' tracks whatever version MODELS.glm points at today. Returns null on miss
 // (caller decides how to fail) — an UNKNOWN alias is rejected rather than passed through, because an
 // off-plan alias does not error at the backend, it HANGS until the watchdog kills the leaf. To use a
@@ -151,13 +217,19 @@ function resolveModel(token) {
   if (!full) return null
   const bare = full.replace('opencode-go/', '')
   if (KNOWN_ALIASES.has(bare)) return full
+  // A barred vendor's aliases resolve too, even though no table lists them by name — the vendor rule
+  // is open-ended (any grok, any kimi) and cannot enumerate future versions. Resolving here lets the
+  // gate substitute and REPORT the refusal; rejecting instead would tell the operator that a model
+  // they can see on their plan does not exist, which is both false and the wrong lesson.
+  if (neverOnGoReplacement(bare)) return full
   return MODELS[bare] || null
 }
 
 // --- Tier definitions — DEFAULTS, overlaid by pi.json `tiers` ----------------
 // Each model runs as its OWN single-model oppy-reviewer leaf (subagents can't fan out themselves — the
 // workflow does the fan-out). Tiers list FAMILY names (resolved via MODELS above), so a version bump
-// never touches this table. Kimi joins at med+high (see kimiMode). Synthesis effort tracks STAKES,
+// never touches this table. `kimicode` is an ordinary family and joins med+high through the families
+// list; `kimiCli` is a SEPARATE per-tier switch for the Kimi CLI (K3) leaf. Synthesis effort tracks STAKES,
 // not review count (that's why `med` gets more effort than `low` despite fewer reviews):
 // low=routine, med=architecture-adjacent, high=pre-release. `effort` (low/medium/high) is the
 // provider vocabulary; operator tiers stay exactly low/med/high (`max`/`ultra` are accepted as
@@ -166,13 +238,13 @@ function resolveModel(token) {
 // puts deepseek in all three (strong per-model unique-find rate) and keeps minimax at `high` only,
 // where breadth is the point (it is the weakest single arm in EXPERIMENT.md's triaged record).
 const BASE_TIERS = {
-  low:  { families: ['deepseek', 'mimo', 'qwen'], kimi: false, effort: 'low' },
-  med:  { families: ['glm', 'qwen', 'deepseek'], kimi: true, effort: 'medium' },
-  high: { families: ['glm', 'qwen', 'minimax', 'deepseek', 'mimo'], kimi: true, effort: 'high' },
+  low:  { families: ['deepseek', 'mimo', 'qwen'], kimiCli: false, effort: 'low' },
+  med:  { families: ['glm', 'qwen', 'deepseek', 'kimicode'], kimiCli: false, effort: 'medium' },
+  high: { families: ['glm', 'qwen', 'minimax', 'deepseek', 'mimo', 'kimicode', 'hy'], kimiCli: false, effort: 'high' },
 }
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max'])
 // Overlay the host's `tiers`. A tier may be given as a bare family list (["glm","qwen"]) or as an
-// object ({"families":[…],"kimi":false,"effort":"high"}) to also move the kimi leaf or the synthesis
+// object ({"families":[…],"kimiCli":true,"effort":"high"}) to also move the CLI leaf or the synthesis
 // effort. The three tier NAMES are fixed — `low|med|high` is the documented input contract of
 // /pi-review and of the argument-hint, so inventing a fourth here would produce a tier no operator
 // can ask for. Every family must exist in the merged registry: a tier naming a family that does not
@@ -189,7 +261,7 @@ function mergeTiers(base, override, models) {
       if (!out[name]) throw new Error(`unknown tier '${rawName}' in 'tiers' config — configurable tiers are exactly ${Object.keys(base).join(', ')}`)
       const raw = override[rawName]
       const spec = Array.isArray(raw) ? { families: raw } : (raw && typeof raw === 'object' ? raw : null)
-      if (!spec) throw new Error(`invalid config for tier '${name}' — use a family list like ["glm","qwen"], or {"families":[…],"kimi":false,"effort":"high"}`)
+      if (!spec) throw new Error(`invalid config for tier '${name}' — use a family list like ["glm","qwen"], or {"families":[…],"kimiCli":true,"effort":"high"}`)
       if (spec.families != null) {
         if (!Array.isArray(spec.families) || !spec.families.length) throw new Error(`tier '${name}' needs a NON-EMPTY list of family names — a tier with no reviewers is not a review`)
         const fams = spec.families.map(f => String(f).trim().toLowerCase())
@@ -197,7 +269,12 @@ function mergeTiers(base, override, models) {
         if (unknown.length) throw new Error(`tier '${name}' names unknown model family/families: ${unknown.join(', ')} — known families are ${Object.keys(models).join(', ')} (add one under 'models' in pi.json)`)
         out[name].families = fams.filter((f, i) => fams.indexOf(f) === i)
       }
-      if (spec.kimi != null) out[name].kimi = Boolean(spec.kimi)
+      // The old `kimi` switch meant "run A kimi leaf, backend picked by kimiMode". That question no
+      // longer exists: the Go-plan Kimi is the ordinary family `kimicode` (put it in `families`), and
+      // `kimiCli` toggles ONLY the separate CLI/K3 leaf. Accepting the old key would silently move a
+      // different leaf than the operator meant, so it is refused by name.
+      if (spec.kimi != null) throw new Error(`tier '${name}' uses the retired 'kimi' switch — the Go-plan Kimi is now the ordinary family 'kimicode' (add it to "families"), and 'kimiCli' toggles the separate Kimi CLI (K3) leaf`)
+      if (spec.kimiCli != null) out[name].kimiCli = Boolean(spec.kimiCli)
       if (spec.effort != null) {
         const eff = String(spec.effort).trim().toLowerCase()
         if (!EFFORTS.has(eff)) throw new Error(`invalid effort '${spec.effort}' for tier '${name}' — use one of: ${[...EFFORTS].join(', ')}`)
@@ -235,7 +312,7 @@ const tier = TIERS[tierName]
 // family names → full opencode-go aliases, each through the on-demand gate (so a configured
 // on-demand model is stood-in for, and the swap recorded, instead of quietly running).
 const tierModels = tier.families.map(f => gate(MODELS[f]))
-// Per-run EXTRA leaves (`/pi-review … --with grok-4.5`): added on top of the tier for this run only.
+// Per-run EXTRA leaves (`/pi-review … --with grok-4.6`): added on top of the tier for this run only.
 // Resolved and gated exactly like a tier leaf — naming an on-demand model here is a REQUEST, not the
 // consent; consent is `allowOnDemand`, which the command sets only after the operator confirms.
 const extraModels = (Array.isArray(A.extraModels) ? A.extraModels : []).map(t => {
@@ -248,7 +325,7 @@ const workdir = A.workdir || '.'
 // Chairman DEFAULTS to 'glm' (→ MODELS.glm) — a cheap opencode-go reconciler (routed through an
 // oppy-reviewer RECONCILE task), true to "Poor Intelligence" and zero-config out of the box. Override
 // with 'opus'/'sonnet' (Anthropic Agent) or any model token the registry resolves — full ('opencode-go/
-// glm-5.2'), bare ('glm-5.2'), or FAMILY ('glm', 'qwen', 'kimi'…). Known caveat: in med/high glm is
+// glm-5.2'), bare ('glm-5.2'), or FAMILY ('glm', 'qwen', 'kimicode'…). Known caveat: in med/high glm is
 // also a leaf, so it lightly self-reviews — but MITIGATED: RECONCILE mode (chairman works only from
 // pasted reviews, not source) PLUS glm gets a DIFFERENT scaffold as leaf vs chairman (adjudicate / kill
 // confabulations, not affirm). Minor, not eliminated (correlated blind spots remain). Drop to 'low' (no
@@ -262,15 +339,22 @@ if (!resolvedChairman) {
 // The chair is gated too: an unconsented on-demand chairman stands down to its auto stand-in rather
 // than reconciling the whole panel on a model the operator never confirmed.
 const chairmanModel = (resolvedChairman === 'opus' || resolvedChairman === 'sonnet') ? resolvedChairman : gate(resolvedChairman)
-// Kimi is CONFIGURABLE via args.kimiMode (applies to kimi-tiers med/high only):
-//   'opencode' (default) → native opencode-go leaf (opencode-go/kimi-k2.7-code) — one backend/quota pool
-//   'cli'                 → the standalone Kimi CLI (your own kimi subscription, or where opencode has no kimi)
-//   'off'                 → no kimi leaf at all
-// Gated LAZILY at the use site below — gating here would record a downgrade for a kimi leaf that
-// this tier/kimiMode never actually runs, and the footer must only report swaps that really happened.
-const KIMI_OPENCODE_ALIAS = MODELS.kimi
-const kimiMode = String(A.kimiMode || 'opencode').toLowerCase()
-if (kimiMode !== 'opencode' && kimiMode !== 'cli' && kimiMode !== 'off') throw new Error(`invalid kimiMode '${A.kimiMode}' — use 'opencode', 'cli', or 'off'`)
+// --- The two Kimis --------------------------------------------------------
+// They are DIFFERENT models on DIFFERENT accounts, and the council may run both:
+//   `kimicode`  — opencode-go/kimi-k2.7-code, an ordinary family in `families`, via oppy-reviewer.
+//   kimi CLI    — Kimi K3 on the operator's OWN kimi-code subscription, via the kimi-reviewer agent.
+// Keeping them apart is the whole point of the naming: same vendor, different weights, different
+// quota pool. Running both buys AVAILABILITY (one pool draining does not blank the slot), not extra
+// cross-vendor diversity — treat two Moonshot leaves as one vendor's opinion when weighing a verdict.
+// The CLI leaf is opt-in per tier (`kimiCli`), off in every shipped tier, because it spends the
+// operator's personal quota rather than the Go plan's.
+// `kimiCliModel` is the CLI's OWN alias namespace (`kimi -m`), NOT an opencode one: the same model is
+// `kimi-code/k3-256k` to the CLI and `kimi-for-coding/k3-256k` to opencode. Do not cross the two.
+const KIMI_CLI_MODEL = String(A.kimiCliModel || 'kimi-code/k3-256k').trim().replace(/^["']+|["']+$/g, '').trim()
+if (!/^[A-Za-z0-9][A-Za-z0-9._\/-]*$/.test(KIMI_CLI_MODEL)) throw new Error(`invalid kimiCliModel '${A.kimiCliModel}' — use a kimi-code CLI alias like 'kimi-code/k3-256k' (run 'kimi doctor' to see what this host defines)`)
+// The retired kimiMode collapsed both Kimis into one either/or slot. It cannot be silently ignored:
+// a host whose pi.json still says {"kimiMode":"cli"} would quietly get NO CLI leaf at all.
+if (A.kimiMode != null) throw new Error(`'kimiMode' is retired — the Go-plan Kimi is now the ordinary family 'kimicode' (in a tier's "families"), and the Kimi CLI (K3) leaf is toggled per tier with "kimiCli": true. Drop kimiMode from pi.json`)
 
 // --- Agent-type namespace (args.agentPrefix) ---------------------------------
 // Claude registers a PLUGIN's agents NAMESPACED as `<plugin-name>:<agent>` — this plugin is named
@@ -302,9 +386,12 @@ const AGENT_PREFIX = normPrefix(A.agentPrefix)
 const OPPY_AGENT = `${AGENT_PREFIX}oppy-reviewer`
 const KIMI_AGENT = `${AGENT_PREFIX}kimi-reviewer`
 
-log(`meta-review tier=${tierName} models=${tierModels.length}${extraModels.length ? '+' + extraModels.length + ' extra' : ''}${tier.kimi && kimiMode !== 'off' ? '+kimi(' + kimiMode + ')' : ''} chairman=${chairmanModel} synth-effort=${tier.effort} workdir=${workdir} agents=${AGENT_PREFIX || '<bare>'}`)
+log(`meta-review tier=${tierName} models=${tierModels.length}${extraModels.length ? '+' + extraModels.length + ' extra' : ''}${tier.kimiCli ? '+kimi-cli(' + KIMI_CLI_MODEL + ')' : ''} chairman=${chairmanModel} synth-effort=${tier.effort} workdir=${workdir} agents=${AGENT_PREFIX || '<bare>'}`)
 log(`panel: ${tierModels.concat(extraModels).map(labelOf).join(', ')}`)
 if (strayConsent.length) log(`note: allowOnDemand names non-on-demand model(s), ignored: ${strayConsent.join(', ')}`)
+// Louder than 'ignored': the operator asked for something the Go plan bars outright, and got a
+// substitute. Saying so here means a --with that did nothing never passes for one that worked.
+if (refusedConsent.length) log(`note: REFUSED on the Go plan whatever the consent — substituted instead: ${refusedConsent.map(a => `${a}→${neverOnGoReplacement(a)}`).join(', ')}`)
 
 const TONE = 'Be laconic and brutal. Findings only — NO preamble, NO restating the task or the code, NO summary paragraph, NO praise unless load-bearing. CRITICAL: do NOT think out loud, narrate your analysis, or emit chain-of-thought — output ONLY the final severity-tagged bullet list, nothing before it. (Streaming your reasoning wastes your output budget and gets you cut off before the answer — on a large input this is the #1 cause of a truncated/empty response.) One line per finding: [critical|warning|nit] file:line — issue → fix. If clean, one line saying so.'
 
@@ -406,7 +493,7 @@ function oppyPrompt(alias) {
   return `Use model ${alias} via opencode (with --agent plan). Workdir: ${workdir}. Review: ${target}. CRITICAL: the review prompt you SEND THE BACKEND must BEGIN with the scaffold below VERBATIM — pass it through exactly, do NOT summarize or paraphrase it — and only then add the target/instructions:\n\n===== SCAFFOLD (send verbatim) =====\n${LEAF_SCAFFOLD}\n===== END SCAFFOLD =====\n\nSIZE RULE: if the target is a small diff/excerpt, paste it into the opencode prompt; if it is large (a packed repo or a big file, more than ~10k tokens), ATTACH it via -f rather than pasting — pasting a huge blob into the CLI argument overflows arg/prompt limits and fails. ${WHOLE_REPO_RULE}`
 }
 function kimiPrompt() {
-  return `Review via Kimi CLI. Workdir: ${workdir}. Review: ${target}. Read the target files yourself, but read ONLY files under ${workdir} — never read, list, or fetch anything outside it, and do NOT create, edit, or delete files or run any commands (it is a masked snapshot: reading outside leaks raw source, and a review never writes). Apply the scaffold below as your review discipline (do NOT paraphrase it away), then review:\n\n${LEAF_SCAFFOLD}\n\n${WHOLE_REPO_RULE}`
+  return `Review via the Kimi CLI using model ${KIMI_CLI_MODEL} — pass it explicitly as \`kimi -m ${KIMI_CLI_MODEL}\`, do NOT fall back to the config default (this leaf exists to be a SPECIFIC Kimi; the panel already has the Go-plan ${labelOf(MODELS.kimicode || 'opencode-go/kimi-k2.7-code')} as a separate reviewer, and an unpinned run risks duplicating it). Workdir: ${workdir}. Review: ${target}. Read the target files yourself, but read ONLY files under ${workdir} — never read, list, or fetch anything outside it, and do NOT create, edit, or delete files or run any commands (it is a masked snapshot: reading outside leaks raw source, and a review never writes). Apply the scaffold below as your review discipline (do NOT paraphrase it away), then review:\n\n${LEAF_SCAFFOLD}\n\n${WHOLE_REPO_RULE}`
 }
 
 // --- Review phase: fan out to N single-model leaves in parallel ---------------
@@ -421,16 +508,15 @@ const mkThunk = (label, spawn) => () =>
 const reviewThunks = tierModels.concat(extraModels).map(alias =>
   mkThunk(labelOf(alias), () => agent(oppyPrompt(alias), { agentType: OPPY_AGENT, label: `oppy:${labelOf(alias)}`, phase: 'Review' }))
 )
-// Kimi leaf — only in kimi-tiers (med/high); backend chosen by kimiMode (opencode/cli/off, above).
-// A missing or failing kimi becomes an UNAVAILABLE record (mkThunk .catch), so the panel is never
+// Kimi CLI leaf (K3 on the operator's own subscription) — opt-in per tier, and entirely separate from
+// the `kimicode` family leaf above, which the tier's `families` list already fanned out through oppy.
+// The label carries the ROUTE as well as the model: a chairman reading `--- kimi-k2.7-code ---` next
+// to `--- kimi-cli:k3-256k ---` must not collapse two different models into one Kimi opinion.
+// A missing or failing CLI becomes an UNAVAILABLE record (mkThunk .catch), so the panel is never
 // blocked on it.
-if (tier.kimi && kimiMode !== 'off') {
-  if (kimiMode === 'cli') {
-    reviewThunks.push(mkThunk('kimi-cli', () => agent(kimiPrompt(), { agentType: KIMI_AGENT, label: 'kimi-cli', phase: 'Review' })))
-  } else {
-    const kimiAlias = gate(KIMI_OPENCODE_ALIAS)
-    reviewThunks.push(mkThunk('kimi', () => agent(oppyPrompt(kimiAlias), { agentType: OPPY_AGENT, label: 'oppy:kimi', phase: 'Review' })))
-  }
+if (tier.kimiCli) {
+  const kimiCliLabel = `kimi-cli:${KIMI_CLI_MODEL.split('/').pop()}`
+  reviewThunks.push(mkThunk(kimiCliLabel, () => agent(kimiPrompt(), { agentType: KIMI_AGENT, label: kimiCliLabel, phase: 'Review' })))
 }
 // filter(Boolean) drops nulls from parallel(); every entry now carries a status line (mkThunk
 // converts an empty/null resolved result into an UNAVAILABLE status), so no second filter is needed.

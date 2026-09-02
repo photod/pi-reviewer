@@ -1,7 +1,7 @@
 ---
 name: pi-config
 description: Configure the PI council — models, tier rosters, chairman, Kimi backend. Writes ~/.claude/pi.json; `doctor` verifies it against your live plan.
-argument-hint: "[show|doctor|models] · [set tier|chairman|kimiMode <v>] · [model <family> <alias>] · [tier <name> <family...>] · [ondemand <alias> <stand-in>] · [reset]"
+argument-hint: "[show|doctor|models] · [set tier|chairman|kimiCliModel <v>] · [model <family> <alias>] · [tier <name> <family...>] · [ondemand <alias> <stand-in>] · [reset]"
 ---
 
 # /pi-config — the one door for council settings
@@ -28,7 +28,10 @@ Everything goes through the script — it owns validation, atomic writes, and th
    - "use minimax 2.7" / "pin minimax" → `model minimax minimax-m2.7`
    - "use glm 5.3" → `model glm glm-5.3`, then warn that 5.3 is **on-demand**: normal runs will use
      glm-5.2 unless they confirm it per run with `--with glm-5.3`
-   - "turn kimi off" → `set kimiMode off` · "use my own kimi CLI" → `set kimiMode cli`
+   - "use my own kimi CLI" / "add K3" → `tier <name> --kimi-cli on` (it is off in every tier by
+     default). "turn the Go-plan kimi off" is a DIFFERENT thing → drop `kimicode` from that tier's
+     family list. Never conflate the two: `kimicode` is Go-plan K2.7-Code, `--kimi-cli` is K3 on the
+     operator's own subscription.
    - "drop minimax from high" → read `show` first, then `tier high <the remaining families>`
    - "make opus the chairman" → `set chairman opus`
    - "put deepseek in med" → read `show`, then `tier med <existing families> deepseek`
@@ -45,9 +48,9 @@ Everything goes through the script — it owns validation, atomic writes, and th
 |---|---|
 | `set tier low\|med\|high` | which tier `/pi-review` uses when you do not name one |
 | `set chairman <opus\|sonnet\|family\|alias>` | who reconciles the panel into one verdict |
-| `set kimiMode opencode\|cli\|off` | where the Kimi leaf runs (opencode-go, your own `kimi` CLI, or nowhere) |
+| `set kimiCliModel <cli-alias>` | which model the Kimi CLI leaf runs (default `kimi-code/k3-256k` — the **CLI** spelling, not opencode's `kimi-for-coding/…`) |
 | `model <family> <alias>` | pin a family to a model — this is how you bump a version |
-| `tier <name> <family...>` | who reviews at that tier (`--kimi on\|off`, `--effort <level>` too) |
+| `tier <name> <family...>` | who reviews at that tier (`--kimi-cli on\|off`, `--effort <level>` too) |
 | `ondemand <alias> <stand-in>` | mark a model opt-in-only and name its automatic stand-in |
 | `reset [key]` | drop one key, or the whole file |
 
@@ -55,16 +58,28 @@ Tier NAMES are fixed at `low|med|high` — that is `/pi-review`'s input contract
 
 ## On-demand models
 
-Some models are opt-in per run (`glm-5.3`, `qwen3.8-max`, `kimi-k3`, `grok-4.5` by default — `glm-5.3`
-is priced well above the flat plan, hence the gate). **Consent cannot be stored** — a config saying "always use Grok" is exactly the automatic use the gate exists to prevent.
-So `pi.json` only holds the downgrade map; to actually use one, the operator names it on the run:
+Some models are opt-in per run (`glm-5.3`, `qwen3.8-max` by default — `glm-5.3` is priced well above
+the flat plan, hence the gate). **Consent cannot be stored** — a config saying "always use the pricey
+one" is exactly the automatic use the gate exists to prevent. So `pi.json` only holds the downgrade
+map; to actually use one, the operator names it on the run:
 
 ```
-/pi-review high --with grok-4.5
+/pi-review high --with glm-5.3
 ```
 
 If an on-demand model is reached without that confirmation, the council runs its stand-in and says so
-in the `coverage:` footer. Explain that if someone asks why they got Luna instead of Grok.
+in the `coverage:` footer. Explain that if someone asks why they got 5.2 instead of 5.3.
+
+## Barred vendors — stronger than on-demand
+
+Two vendors never run on the Go plan, and **no `--with` unlocks them**: any `grok-*` (priced far above
+what this council is for) and any `kimi-*` other than `kimi-k2.7-code` (K3 is the `kimi-reviewer` CLI
+leaf's job, on the operator's own subscription). They are SUBSTITUTED, not refused — the panel keeps
+its width and the footer names the swap.
+
+The rules key on the **vendor**, not the version, so a new `grok-5` is caught the day it ships. If
+someone asks for Grok, say plainly that the plan bars it and offer `luna` — do not try to route around
+it with `--with`, which is reported as REFUSED in the log.
 
 ## After a change
 

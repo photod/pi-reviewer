@@ -1,6 +1,6 @@
 ---
 name: kimi-reviewer
-description: Get code review from Kimi (kimi-code CLI). Use for a 2nd opinion on architecture, logic, and code quality.
+description: Get a code review from Kimi K3 through the kimi-code CLI, on the operator's OWN Kimi subscription. NOT the Go-plan kimi-k2.7-code council leaf (that one is the `kimicode` family and runs through oppy-reviewer) — pick this agent only when you want K3 on the personal quota.
 model: sonnet
 color: purple
 tools: Bash, Read, Grep, Glob
@@ -30,9 +30,17 @@ CLI once made reviews quietly fall back to self-analysis — that is the #1 sile
 Use EXACTLY this pattern (verified against kimi-code v0.11.0):
 
 ```bash
-kimi -p "PROMPT" --output-format stream-json < /dev/null
+kimi -m kimi-code/k3-256k -p "PROMPT" --output-format stream-json < /dev/null
 ```
 
+- **`-m, --model`** pins the model for this invocation. **Always pass it.** Default to
+  `kimi-code/k3-256k` (K3, 256k context); if the caller names a different alias, use theirs verbatim.
+  Without `-m` the CLI silently falls back to `default_model` in `config.toml`, which varies per host —
+  and if that default happens to be a K2-class model you hand the panel a near-duplicate of its
+  Go-plan `kimi-k2.7-code` leaf while labelling it K3. Wrong-model-under-the-right-label is a
+  reporting failure, not a preference. These aliases are the **CLI's own** namespace: the same model
+  is `kimi-code/k3-256k` here and `kimi-for-coding/k3-256k` in opencode — never pass an opencode path
+  to `kimi -m`. `kimi doctor` prints which `config.toml` is live and therefore which aliases exist.
 - **`-p, --prompt`** runs one prompt non-interactively and exits — this is the whole call. There is no
   `--print` flag (that was legacy kimi-cli; this binary was renamed to kimi-code — do not use it).
 - **`--output-format stream-json`** is what makes this a clean relay (see "Parsing" below). It is only

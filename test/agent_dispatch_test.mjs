@@ -34,15 +34,16 @@ async function runEngine(args) {
   return { dispatched, result }
 }
 
-// `high` + kimiMode:cli exercises every dispatch path at once: 5 oppy leaves, the kimi leaf, and the
-// cheap chairman's synthesis call (which routes through oppy too).
-const base = { tier: 'high', kimiMode: 'cli', target: 'x', workdir: '/tmp/x' }
+// `high` + kimiCli exercises every dispatch path at once: 7 oppy leaves (the high tier, kimicode and
+// hy included), the separate Kimi CLI leaf, and the cheap chairman's synthesis call (oppy too).
+const HIGH_OPPY_LEAVES = 7
+const base = { tier: 'high', tiers: { high: { kimiCli: true } }, target: 'x', workdir: '/tmp/x' }
 
 const plugin = await runEngine({ ...base })
 check('default install dispatches ONLY namespaced agent types',
   plugin.dispatched.length > 0 && plugin.dispatched.every(t => t === 'pi:oppy-reviewer' || t === 'pi:kimi-reviewer'))
-check('every leaf AND the chairman are dispatched (high + kimi:cli = 5 + 1 + 1)',
-  plugin.dispatched.length === 7)
+check('every leaf AND the chairman are dispatched (high + kimiCli = 7 + 1 + 1)',
+  plugin.dispatched.length === HIGH_OPPY_LEAVES + 2)
 check('the kimi CLI leaf is dispatched namespaced too',
   plugin.dispatched.includes('pi:kimi-reviewer'))
 check('a full panel produces a synthesis (stubbed leaves are usable)',
@@ -50,7 +51,7 @@ check('a full panel produces a synthesis (stubbed leaves are usable)',
 
 const bare = await runEngine({ ...base, agentPrefix: 'bare' })
 check('agentPrefix=bare dispatches ONLY unprefixed agent types',
-  bare.dispatched.length === 7 && bare.dispatched.every(t => t === 'oppy-reviewer' || t === 'kimi-reviewer'))
+  bare.dispatched.length === HIGH_OPPY_LEAVES + 2 && bare.dispatched.every(t => t === 'oppy-reviewer' || t === 'kimi-reviewer'))
 
 const quoted = await runEngine({ ...base, agentPrefix: '"pi"' })
 check('a quote-wrapped prefix from $ARGUMENTS still dispatches namespaced',

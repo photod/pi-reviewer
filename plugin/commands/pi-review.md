@@ -1,7 +1,7 @@
 ---
 name: pi-review
 description: Poor Intelligence, not AI ;-) — a council of cheap opencode-go models fans out; a glm-5.2 chairman reconciles ONE verdict.
-argument-hint: "[low|med(default)|high] [target] [chairman: glm-5.2(default)|opus|sonnet] [kimiMode: opencode(default)|cli|off] [--with <on-demand alias>] [agentPrefix: pi(default)|bare]"
+argument-hint: "[low|med(default)|high] [target] [chairman: glm-5.2(default)|opus|sonnet] [--with <on-demand alias>] [agentPrefix: pi(default)|bare]"
 ---
 
 # /pi-review — Poor Intelligence code-review council
@@ -13,10 +13,10 @@ findings only). You orchestrate; you do NOT write the review yourself.
 
 Reconfiguration lives in a config the command reads — NOT in per-call args (those are one-off overrides).
 1. **Standing config:** if `~/.claude/pi.json` exists, read it for defaults — keys: `tier`, `chairman`,
-   `kimiMode`, plus the registry overlays `models`, `tiers`, `onDemand`. This is where a host is set up
-   ONCE (e.g. `{"kimiMode":"cli"}` for the native Kimi CLI, or `{"models":{"minimax":"minimax-m2.7"}}` to pin a
-   model). **No file → built-in defaults** (the fridge still works): `tier=med`, `chairman=glm-5.2`,
-   `kimiMode=opencode`, shipped registry and rosters.
+   `kimiCliModel`, plus the registry overlays `models`, `tiers`, `onDemand`. This is where a host is set up
+   ONCE (e.g. `{"tiers":{"high":{"kimiCli":true}}}` to add the Kimi CLI leaf, or
+   `{"models":{"minimax":"minimax-m2.7"}}` to pin a model). **No file → built-in defaults** (the fridge still
+   works): `tier=med`, `chairman=glm-5.2`, `kimiCliModel=kimi-code/k3-256k`, shipped registry and rosters.
    - Pass `models` / `tiers` / `onDemand` straight through in the Workflow args, unchanged — the engine
      validates them and fails LOUD on anything malformed. Do NOT silently drop a key you do not
      recognise and do NOT "fix" a value: a config the run ignored looks exactly like one that worked.
@@ -28,14 +28,14 @@ Reconfiguration lives in a config the command reads — NOT in per-call args (th
      against the live plan. Never edit the engine to change a model — step 3 overwrites it.
 2. **Per-call overrides:** parse `$ARGUMENTS` and let them override the config for THIS run only — a tier
    keyword (`low`/`med`/`high`), a target (path/glob/`diff`/`branch`; default `git diff HEAD`), a chairman
-   (`opus`/`sonnet`/an `opencode-go/<alias>`), a `kimiMode` (`opencode`/`cli`/`off`), an explicit
+   (`opus`/`sonnet`/an `opencode-go/<alias>`), an explicit
    `agentPrefix=<pi|bare>` (escape hatch for step 3's namespace resolution — see there), and any number of
    on-demand review **lenses** via `--lens <name>` or `lens=<name>` (repeatable, e.g. `--lens security
    --lens ux`). Collect them into a `lenses` array passed in the Workflow args (below); the engine adds
    them on top of the always-on default lenses and ignores unknown names with a note. Valid on-demand
    lenses: `ux`, `blastradius`, `security`, `simplicity`, `honesty` (see `lenses.md`).
 2b. **On-demand models (`--with <alias>`, repeatable).** Some models are opt-in per run — never
-   automatic — because of cost/quota/policy (`glm-5.3`, `qwen3.8-max`, `kimi-k3`, `grok-4.5` by default; the map
+   automatic — because of cost/quota/policy (`glm-5.3`, `qwen3.8-max`, `kimi-k3`, `grok-4.6` by default; the map
    lives in pi.json `onDemand`). `--with` is a REQUEST, not the consent. Before passing it on:
    - **Get the operator's explicit confirmation in THIS run** (AskUserQuestion, or an unambiguous
      yes already in their message). A standing config can NEVER grant this — that is precisely why
@@ -47,7 +47,7 @@ Reconfiguration lives in a config the command reads — NOT in per-call args (th
      `allowOnDemand` is the only unlock, and only for that one run.
 
 Tiers (DEFAULTS — reconfigurable per host in pi.json, see `/pi-config`): `low` = deepseek + mimo +
-qwen · `med` (default) = glm + qwen + deepseek + kimi · `high` = all six + kimi + high-effort synth.
+qwen · `med` (default) = glm + qwen + deepseek + kimicode · `high` = all six + high-effort synth.
 (`max` / `ultra` are accepted as aliases for `high` — people forget which word is the top.)
 
 ## Housekeeping asks (preview masking) — handle in chat, no council
@@ -59,7 +59,12 @@ named and relay the output (what would be redacted, line by line). This is local
 staged or sent anywhere. (If an operator explicitly asks to change WHICH domains get masked, a
 repo-root `pi-mask.config.json` — created from the bundled `scripts/pi-mask.config.example.json` —
 toggles `groups.<name>` / `national_ids.<CC>` booleans; nobody should have to touch it otherwise.)
-Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by default, native CLI, or off).
+TWO different Kimis, deliberately kept apart. `kimicode` is the Go-plan `kimi-k2.7-code` — an ORDINARY
+family, in med/high like any other, running through `oppy-reviewer`. The `kimi-reviewer` agent is a
+SEPARATE leaf running K3 (`kimi-code/k3-256k`) on the operator's own Kimi subscription; it is off in
+every shipped tier and switched on per tier with `kimiCli`. Both may run at once — that buys
+availability (two quota pools), not vendor diversity: they are both Moonshot, so weigh them as one
+vendor's voice. Panel labels keep them apart: `kimi-k2.7-code` vs `kimi-cli:k3-256k`.
 
 ## Execute — self-bootstrapping, single engine
 
@@ -85,9 +90,10 @@ Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by de
    operator this one screen (then create that marker file and never repeat it):
    > **PI, first run — what's in the box:**
    > - Tiers `low|med|high` — and `max`/`ultra` if you forget which word is the top; optional
-   >   `[target] [chairman] [kimiMode]` per run.
+   >   `[target] [chairman]` per run.
    > - **`/pi-config`** — change anything for good: which models the panel runs, who reviews at each
-   >   tier, where Kimi runs, who chairs. `/pi-config doctor` checks it all against your live plan.
+   >   tier, whether the Kimi CLI leaf joins, who chairs. `/pi-config doctor` checks it all against your
+   >   live plan.
    > - **Masking is ON at every scope** — diffs, named files, and whole repos all go through the
    >   secret masker before any model sees your code. Only an explicit `mode=yolo` sends raw.
    > - Ask in chat: *"what would PI mask in `<path>`?"* — instant preview, nothing is sent.
@@ -149,7 +155,7 @@ Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by de
    ```
    Workflow({
      scriptPath: "~/.claude/workflows/pi-council.js",
-     args: { tier, target, workdir: <cwd or the target's dir>, chairmanModel, kimiMode, mode, agentPrefix, ...(models ? {models} : {}), ...(tiers ? {tiers} : {}), ...(onDemand ? {onDemand} : {}), ...(extraModels && extraModels.length ? {extraModels} : {}), ...(allowOnDemand && allowOnDemand.length ? {allowOnDemand} : {}), ...(fileList ? {fileList} : {}), ...(dropped ? {dropped} : {}), ...(lenses && lenses.length ? {lenses} : {}) }
+     args: { tier, target, workdir: <cwd or the target's dir>, chairmanModel, mode, agentPrefix, ...(kimiCliModel ? {kimiCliModel} : {}), ...(models ? {models} : {}), ...(tiers ? {tiers} : {}), ...(onDemand ? {onDemand} : {}), ...(extraModels && extraModels.length ? {extraModels} : {}), ...(allowOnDemand && allowOnDemand.length ? {allowOnDemand} : {}), ...(fileList ? {fileList} : {}), ...(dropped ? {dropped} : {}), ...(lenses && lenses.length ? {lenses} : {}) }
    })
    ```
    Pass `mode` (diff/feature/list/pack/curated/yolo — default `diff` for non-whole-repo) so the coverage
@@ -161,6 +167,6 @@ Kimi is a leaf at med/high only; `kimiMode` picks its backend (opencode-go by de
    is fine, silent is not.
 5. **If the engine file is genuinely absent** (not a plugin install, copy failed): run the tier inline as a
    fallback — parallel `pi:oppy-reviewer` agents (one `-m opencode-go/<alias>` each; + a `pi:kimi-reviewer`
-   at med/high when `kimiMode:cli`), then an Opus synthesis. Use the **same namespace you resolved in step
+   running `kimi -m kimi-code/k3-256k` for any tier with `kimiCli:true`), then an Opus synthesis. Use the **same namespace you resolved in step
    3** — `pi:`-prefixed when installed as this plugin, bare (`oppy-reviewer` / `kimi-reviewer`) when the
    agents were installed standalone. Tell the operator once that it ran in fallback mode.

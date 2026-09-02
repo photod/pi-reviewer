@@ -68,15 +68,22 @@ you may be asked to run:
 |-------|--------------|------|
 | `opencode-go/glm-5.2` | GLM-5.2 | flagship leaf + default chairman |
 | `opencode-go/qwen3.7-max` | Qwen3.7 Max | leaf, all tiers |
-| `opencode-go/deepseek-v4-pro` | DeepSeek V4 PRO | leaf, all tiers |
+| `opencode-go/deepseek-v4-flash` | DeepSeek V4 Flash | leaf, all tiers |
 | `opencode-go/mimo-v2.5-pro` | MiMo V2.5 Pro | leaf, low + high |
 | `opencode-go/minimax-m3` | MiniMax-M3 | leaf, high only |
-| `opencode-go/kimi-k2.7-code` | Kimi K2.7 Code | the code-specialised leaf, med + high |
-| `opencode-go/gpt-5.6-luna` | GPT-5.6 Luna | in no tier — the auto stand-in for on-demand Grok 4.5 |
+| `opencode-go/kimi-k2.7-code` | Kimi K2.7 Code | the `kimicode` leaf, med + high |
+| `opencode-go/hy4-preview` | HY4 Preview | leaf, high only |
+| `opencode-go/gpt-5.6-luna` | GPT-5.6 Luna | in no tier — the stand-in every barred Grok becomes |
 
-**Never run an on-demand model on your own initiative** (`glm-5.3`, `qwen3.8-max`, `kimi-k3`, `grok-4.5`): the
-engine gates those and hands you the stand-in unless the operator confirmed the real one this run.
-If you are handed one, it was confirmed — run it.
+**Never run an on-demand model on your own initiative** (`glm-5.3`, `qwen3.8-max`): the engine gates
+those and hands you the stand-in unless the operator confirmed the real one this run. If you are
+handed one, it was confirmed — run it.
+
+**Two vendors are barred on the Go plan outright** and the engine substitutes them before you ever see
+one: ANY `grok-*` (priced far above what this council is for) and any `kimi-*` that is not
+`kimi-k2.7-code` (K3 belongs to the separate `kimi-reviewer` CLI leaf, on the operator's own
+subscription). No confirmation unlocks these. If you are somehow handed one, return
+`status: UNAVAILABLE` naming the alias rather than running it.
 
 **ALWAYS pass `-m <alias>` explicitly on every `opencode run` call.** Never run `opencode run`
 without `-m` — a bare call resolves to opencode's own default model, which is off-plan and hangs.

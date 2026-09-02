@@ -25,7 +25,8 @@ mkdir -p "${TMP}/bin"
   printf 'printf "%%s\\n" opencode/big-pickle opencode-go/glm-5.1 opencode-go/glm-5.2 opencode-go/glm-5.3 \\\n'
   printf '  opencode-go/qwen3.7-max opencode-go/qwen3.8-max opencode-go/deepseek-v4-pro \\\n'
   printf '  opencode-go/mimo-v2.5-pro opencode-go/minimax-m3 opencode-go/kimi-k2.7-code \\\n'
-  printf '  opencode-go/kimi-k2.6 opencode-go/kimi-k3 opencode-go/gpt-5.6-luna opencode-go/grok-4.5 opencode-go/hy3\n'
+  printf '  opencode-go/deepseek-v4-flash opencode-go/hy4-preview \\\n'
+  printf '  opencode-go/kimi-k2.6 opencode-go/kimi-k3 opencode-go/gpt-5.6-luna opencode-go/grok-4.6 opencode-go/hy3\n'
 } > "${TMP}/bin/opencode"
 chmod +x "${TMP}/bin/opencode"
 export PATH="${TMP}/bin:${PATH}"
@@ -39,15 +40,20 @@ out="$(pi show 2>&1)"
 grep -q 'absent — all defaults' <<< "${out}"; check $? 'show works with no config file at all'
 grep -q 'glm-5.2' <<< "${out}";               check $? 'show lists the built-in model defaults'
 grep -q 'low    deepseek mimo qwen' <<< "${out}"; check $? 'show lists the built-in tier rosters'
-grep -q 'grok-4.5' <<< "${out}";              check $? 'show lists the on-demand models'
+grep -q 'qwen3.8-max' <<< "${out}";           check $? 'show lists the on-demand models'
+grep -q 'never on the Go plan' <<< "${out}"; check $? 'show lists the barred vendors separately from on-demand'
+grep -q 'grok' <<< "${out}";                  check $? 'show names grok as barred'
 [[ ! -f "${CFG}" ]];                          check $? 'show is read-only — it does not create the file'
 
 # --- scalar settings -----------------------------------------------------------------------------
-pi set kimiMode cli >/dev/null 2>&1;          check $? 'set kimiMode cli succeeds'
-[[ "$(field kimiMode)" == '"cli"' ]];         check $? 'kimiMode is persisted'
+pi set kimiCliModel kimi-code/k3 >/dev/null 2>&1; check $? 'set kimiCliModel succeeds'
+[[ "$(field kimiCliModel)" == '"kimi-code/k3"' ]]; check $? 'kimiCliModel is persisted'
 json_ok;                                      check $? 'the written file is valid JSON'
-pi set kimiMode bogus >/dev/null 2>&1;        [[ $? -ne 0 ]]; check $? 'an invalid kimiMode is rejected'
-[[ "$(field kimiMode)" == '"cli"' ]];         check $? 'a rejected write leaves the previous value intact'
+pi set kimiCliModel bogus >/dev/null 2>&1;    [[ $? -ne 0 ]]; check $? 'a kimiCliModel with no provider is rejected'
+# The opencode spelling of the SAME model is the likeliest typo here — it must be caught by name.
+pi set kimiCliModel kimi-for-coding/k3-256k >/dev/null 2>&1; [[ $? -ne 0 ]]; check $? 'the opencode spelling is rejected for the CLI'
+[[ "$(field kimiCliModel)" == '"kimi-code/k3"' ]]; check $? 'a rejected write leaves the previous value intact'
+pi set kimiMode cli >/dev/null 2>&1;          [[ $? -ne 0 ]]; check $? 'the retired kimiMode key is rejected'
 pi set tier ultra >/dev/null 2>&1
 [[ "$(field tier)" == '"high"' ]];            check $? 'tier alias ultra is canonicalized to high'
 pi set nosuchkey x >/dev/null 2>&1;           [[ $? -ne 0 ]]; check $? 'an unknown settings key is rejected'
@@ -77,8 +83,9 @@ pi tier low deepseek mimo >/dev/null 2>&1;    check $? 'a tier roster can be set
 [[ "$(field tiers)" == '{"low": ["deepseek", "mimo"]}' ]]; check $? 'the roster is stored as a plain list'
 pi tier low nosuch >/dev/null 2>&1;           [[ $? -ne 0 ]]; check $? 'an unknown family in a tier is refused'
 pi tier paranoid glm >/dev/null 2>&1;         [[ $? -ne 0 ]]; check $? 'a fourth tier name is refused (low|med|high is fixed)'
-pi tier med --kimi off >/dev/null 2>&1;       check $? 'the kimi leaf can be switched off per tier'
-grep -q '"kimi": false' <<< "$(pi dump)";     check $? 'the kimi switch is stored as an object field'
+pi tier med --kimi-cli on >/dev/null 2>&1;    check $? 'the Kimi CLI leaf can be switched on per tier'
+grep -q '"kimiCli": true' <<< "$(pi dump)";   check $? 'the kimiCli switch is stored as an object field'
+pi tier med --kimi off >/dev/null 2>&1;       [[ $? -ne 0 ]]; check $? 'the retired --kimi switch is rejected'
 pi tier high --effort max >/dev/null 2>&1;    check $? 'synthesis effort can be set per tier'
 pi tier high --effort ludicrous >/dev/null 2>&1; [[ $? -ne 0 ]]; check $? 'an invalid effort is refused'
 pi tier low --unset >/dev/null 2>&1;          check $? 'a tier can be reset to its default'
