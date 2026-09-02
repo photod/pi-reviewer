@@ -7,7 +7,7 @@ PI, not AI.
 
 It's a code review tool that does the obvious-in-hindsight thing: instead of paying one expensive model to look at your code, it asks a handful of cheap ones and lets them fight about it, then a chairman reads the fight and hands you a single verdict.
 
-The name is a price tag, not an insult. Poor as in cheap, not poor as in dim — these models are, officially, in the frontier's league. GLM-5.2 lands within a few points of the best closed models on real coding benchmarks, and the rest aren't far off; they just cost pennies a call instead of dollars. So yes, it's poor-man's AI, and the poor man is getting six frontier-grade reviewers for a flat monthly fee. The bet is that six strong models with different blind spots cover more ground than one expensive model with a single blind spot, and running all six costs about nothing. Poverty of price, not of intelligence. That's the thesis.
+The name is a price tag, not an insult. Poor as in cheap, not poor as in dim — these models are, officially, in the frontier's league. GLM-5.2 lands within a few points of the best closed models on real coding benchmarks, and the rest aren't far off; they just cost pennies a call instead of dollars. So yes, it's poor-man's AI, and the poor man is getting six frontier-grade reviewers for a flat monthly fee. The bet is that a panel of strong models with different blind spots covers more ground than one expensive model with a single blind spot, and running the whole panel costs about nothing. Poverty of price, not of intelligence. That's the thesis.
 
 ## You need opencode first
 
@@ -43,7 +43,7 @@ The three tiers, spelled out:
 
 - **low** — a quick pass with three reviewers; fast, the one for a routine diff. (DeepSeek-V4-Pro, MiMo-V2.5-Pro, Qwen3.7-Max.)
 - **med** *(default)* — four reviewers with a better spread; the one you'll reach for most days. (GLM-5.2, Qwen3.7-Max, DeepSeek-V4-Pro, Kimi K2.7-Code.)
-- **high** — all six reviewers plus a heavier reconciliation pass by the chairman, for a pre-merge audit or a change that scares you.
+- **high** — seven reviewers from seven different labs, plus a heavier reconciliation pass by the chairman, for a pre-merge audit or a change that scares you.
 
 (`max` and `ultra` also work — both map to `high`, for anyone who forgets which word is the top.)
 
@@ -100,20 +100,19 @@ default. Out of the box:
 
 | On-demand | Auto stand-in |
 |---|---|
-| `glm-5.3` | `glm-5.2` |
 | `qwen3.8-max` | `qwen3.7-max` |
 
 The council never reaches for one on its own. If something resolves to one anyway — you pinned it, or
 seated it as chairman — it runs the stand-in instead and tells you so in the coverage footer:
 
 ```
-coverage: diff · 4/4 leaves OK · 1 DOWNGRADED on-demand (glm-5.3→glm-5.2)
+coverage: diff · 5/5 leaves OK · 1 DOWNGRADED on-demand (qwen3.8-max→qwen3.7-max)
 ```
 
 To actually use one, name it on the run and confirm when asked:
 
 ```
-/pi-review high --with glm-5.3
+/pi-review high --with qwen3.8-max
 ```
 
 Consent is per run and deliberately *cannot* be stored — a config line saying "always use the pricey
@@ -129,6 +128,7 @@ never refused outright — the panel keeps its width, and the swap shows up in t
 |---|---|---|
 | any `grok-*` | `gpt-5.6-luna` | priced far above what a Poor-Intelligence council is for |
 | any `kimi-*` except `kimi-k2.7-code` | `kimi-k2.7-code` | K3 belongs to the `kimi-reviewer` CLI leaf, on *your* subscription — not the shared Go pool |
+| `qwen3.7-plus` | `qwen3.7-max` | benchmarked at 1 real bug in 10 (see below) — not worth a slot at any price |
 
 These rules name the **vendor**, not the version, and that's the point: `grok-4.5` was once pinned by
 version, the plan moved to `grok-4.6`, and the successor would have sailed straight through. Now
@@ -240,7 +240,7 @@ Which is why the column that matters is **confirmed-real**, not raw finds — a 
 
 **And what does `/pi-review high` hand you? Not six lists — one.** Those rows are the ingredients; the product is the reconciliation. The six-model cheap panel produced over 60 raw findings between them (overlaps included); the GLM-5.2 chairman read the whole fight and reconciled it into a **single 39-item verdict** — deduped, disagreements flagged, severity-ranked. That's the thing you actually read after a run. (The chairman's list isn't itself scored against the triage matrix — it's a reconciliation of the panel, not an extra reviewer; full accounting in [EXPERIMENT.md](https://github.com/photod/pi-reviewer/blob/main/EXPERIMENT.md).)
 
-**Where's Qwen?** An honest mistake, kept on the record: the panel run accidentally benchmarked `qwen3.7-plus` — the wrong model — and it scored 1 real bug in 10, so its row would only mislead here. Production uses **`qwen3.7-max`**, a materially stronger model, and a validation rerun on the same tree backed that up: it independently re-found the panel's headline save/load bug (30 raw findings, 2 confirmed false positives on a source check, the rest deposited with the maintainers for triage). Both runs, full numbers, in [EXPERIMENT.md](https://github.com/photod/pi-reviewer/blob/main/EXPERIMENT.md).
+**Where's Qwen?** An honest mistake, kept on the record: the panel run accidentally benchmarked `qwen3.7-plus` — the wrong model — and it scored 1 real bug in 10, so its row would only mislead here. That result is now enforced in code: `qwen3.7-plus` is on the barred list and can never run, whatever anyone configures. Production uses **`qwen3.7-max`**, a materially stronger model, and a validation rerun on the same tree backed that up: it independently re-found the panel's headline save/load bug (30 raw findings, 2 confirmed false positives on a source check, the rest deposited with the maintainers for triage). Both runs, full numbers, in [EXPERIMENT.md](https://github.com/photod/pi-reviewer/blob/main/EXPERIMENT.md).
 
 One repo, one run — not a benchmark claim, just what happened here.
 

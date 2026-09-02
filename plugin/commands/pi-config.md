@@ -26,8 +26,8 @@ Everything goes through the script — it owns validation, atomic writes, and th
    `model …`, `tier …`, `ondemand …`, `reset …`) → pass them through verbatim.
 3. **Plain English** → translate to exactly one command, run it, and say what changed:
    - "use minimax 2.7" / "pin minimax" → `model minimax minimax-m2.7`
-   - "use glm 5.3" → `model glm glm-5.3`, then warn that 5.3 is **on-demand**: normal runs will use
-     glm-5.2 unless they confirm it per run with `--with glm-5.3`
+   - "use glm 5.3" → it already IS the med/high leaf (the `glm53` family). `glm` stays 5.2 because it
+     is the default chairman — do not repoint it without saying so.
    - "use my own kimi CLI" / "add K3" → `tier <name> --kimi-cli on` (it is off in every tier by
      default). "turn the Go-plan kimi off" is a DIFFERENT thing → drop `kimicode` from that tier's
      family list. Never conflate the two: `kimicode` is Go-plan K2.7-Code, `--kimi-cli` is K3 on the
@@ -58,13 +58,13 @@ Tier NAMES are fixed at `low|med|high` — that is `/pi-review`'s input contract
 
 ## On-demand models
 
-Some models are opt-in per run (`glm-5.3`, `qwen3.8-max` by default — `glm-5.3` is priced well above
-the flat plan, hence the gate). **Consent cannot be stored** — a config saying "always use the pricey
+One model is opt-in per run (`qwen3.8-max` by default — new flagships are never auto-adopted).
+**Consent cannot be stored** — a config saying "always use the pricey
 one" is exactly the automatic use the gate exists to prevent. So `pi.json` only holds the downgrade
 map; to actually use one, the operator names it on the run:
 
 ```
-/pi-review high --with glm-5.3
+/pi-review high --with qwen3.8-max
 ```
 
 If an on-demand model is reached without that confirmation, the council runs its stand-in and says so
@@ -73,7 +73,8 @@ in the `coverage:` footer. Explain that if someone asks why they got 5.2 instead
 ## Barred vendors — stronger than on-demand
 
 Two vendors never run on the Go plan, and **no `--with` unlocks them**: any `grok-*` (priced far above
-what this council is for) and any `kimi-*` other than `kimi-k2.7-code` (K3 is the `kimi-reviewer` CLI
+what this council is for), `qwen3.7-plus` (benchmarked at 1 real bug in 10), and any `kimi-*` other
+than `kimi-k2.7-code` (K3 is the `kimi-reviewer` CLI
 leaf's job, on the operator's own subscription). They are SUBSTITUTED, not refused — the panel keeps
 its width and the footer names the swap.
 

@@ -23,34 +23,39 @@ CFG="${PI_CONFIG:-${HOME}/.claude/pi.json}"
 VERIFY=1
 
 # --- Defaults (MIRROR of the engine registry — kept in sync by test/pi_config_test.sh) -----------
-DEFAULT_FAMILIES="glm qwen minimax deepseek mimo kimicode hy luna"
+DEFAULT_FAMILIES="glm glm53 qwen qwenflash minimax deepseek deepseekflash mimo kimicode hy3 hy longcat luna"
 default_alias() {
   case "$1" in
-    glm)      echo 'glm-5.2' ;;
-    qwen)     echo 'qwen3.7-max' ;;
-    minimax)  echo 'minimax-m3' ;;
-    deepseek) echo 'deepseek-v4-flash' ;;
-    mimo)     echo 'mimo-v2.5-pro' ;;
-    kimicode) echo 'kimi-k2.7-code' ;;
-    hy)       echo 'hy4-preview' ;;
-    luna)     echo 'gpt-5.6-luna' ;;
-    *)        echo '' ;;
+    glm)           echo 'glm-5.2' ;;
+    glm53)         echo 'glm-5.3' ;;
+    qwen)          echo 'qwen3.7-max' ;;
+    qwenflash)     echo 'qwen3.8-flash' ;;
+    minimax)       echo 'minimax-m3' ;;
+    deepseek)      echo 'deepseek-v4-pro' ;;
+    deepseekflash) echo 'deepseek-v4-flash' ;;
+    mimo)          echo 'mimo-v2.5-pro' ;;
+    kimicode)      echo 'kimi-k2.7-code' ;;
+    hy3)           echo 'hy3' ;;
+    hy)            echo 'hy4-preview' ;;
+    longcat)       echo 'longcat-2.0' ;;
+    luna)          echo 'gpt-5.6-luna' ;;
+    *)             echo '' ;;
   esac
 }
 default_tier() {
   case "$1" in
-    low)  echo 'deepseek mimo qwen' ;;
-    med)  echo 'glm qwen deepseek kimicode' ;;
-    high) echo 'glm qwen minimax deepseek mimo kimicode hy' ;;
+    low)  echo 'deepseekflash mimo longcat' ;;
+    med)  echo 'glm53 deepseekflash qwenflash kimicode hy3' ;;
+    high) echo 'glm53 qwen minimax deepseek mimo kimicode hy' ;;
     *)    echo '' ;;
   esac
 }
 # on-demand alias : auto stand-in. NEVER used without per-run confirmation; the auto path downgrades.
-DEFAULT_ONDEMAND='qwen3.8-max:qwen3.7-max glm-5.3:glm-5.2'
+DEFAULT_ONDEMAND='qwen3.8-max:qwen3.7-max'
 # NEVER on the Go plan: ANY alias under this vendor (except the listed one) is substituted for it,
 # always, and no per-run consent unlocks it. Grok is priced out of a Poor-Intelligence council; any
 # non-k2.7-code kimi belongs to the kimi-reviewer CLI leaf instead.
-DEFAULT_NEVER_ON_GO='grok:gpt-5.6-luna kimi:kimi-k2.7-code'
+DEFAULT_NEVER_ON_GO='grok:gpt-5.6-luna kimi:kimi-k2.7-code qwen3.7-plus:qwen3.7-max'
 TIER_NAMES="low med high"
 EFFORTS="low medium high xhigh max"
 

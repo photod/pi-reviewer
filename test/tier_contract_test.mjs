@@ -18,9 +18,9 @@ check('review command exposes exact tiers', review.includes('[low|med(default)|h
 check('engine self-install refreshes on upgrade (not copy-if-absent)', review.includes('cmp -s') && review.includes('refresh it whenever'))
 check('build command exposes exact tiers', build.includes('[low|med(default)|high]'))
 check('workflow defaults to med', workflow.includes("A.tier || 'med'"))
-check('workflow low panel preserved', workflow.includes("low:  { families: ['deepseek', 'mimo', 'qwen']"))
-check('workflow med panel preserved', workflow.includes("med:  { families: ['glm', 'qwen', 'deepseek', 'kimicode'], kimiCli: false, effort: 'medium'"))
-check('workflow high panel preserved', workflow.includes("high: { families: ['glm', 'qwen', 'minimax', 'deepseek', 'mimo', 'kimicode', 'hy']"))
+check('workflow low panel preserved', workflow.includes("low:  { families: ['deepseekflash', 'mimo', 'longcat']"))
+check('workflow med panel preserved', workflow.includes("med:  { families: ['glm53', 'deepseekflash', 'qwenflash', 'kimicode', 'hy3'], kimiCli: false, effort: 'medium'"))
+check('workflow high panel preserved', workflow.includes("high: { families: ['glm53', 'qwen', 'minimax', 'deepseek', 'mimo', 'kimicode', 'hy']"))
 check('workflow maps max/ultra aliases to high',
   workflow.includes("rawTier === 'max' || rawTier === 'ultra'") && workflow.includes('use low, med, or high'))
 check('builder provider mapping is coherent',
@@ -29,7 +29,7 @@ check('builder provider mapping is coherent',
   worker.includes('| **high** | `high`'))
 check('glm-worker model aliases stay in sync with the engine registry',
   worker.includes('opencode-go/glm-5.2') && worker.includes('opencode-go/qwen3.7-max') &&
-  workflow.includes("glm:      'opencode-go/glm-5.2'") && workflow.includes("qwen:     'opencode-go/qwen3.7-max'"))
+  workflow.includes("glm:           'opencode-go/glm-5.2'") && workflow.includes("qwen:          'opencode-go/qwen3.7-max'"))
 
 // --- pi-config.sh ↔ engine defaults ------------------------------------------
 // pi-config.sh MIRRORS the engine's defaults because it must work standalone (before the plugin is

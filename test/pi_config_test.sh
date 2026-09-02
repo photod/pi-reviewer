@@ -25,7 +25,8 @@ mkdir -p "${TMP}/bin"
   printf 'printf "%%s\\n" opencode/big-pickle opencode-go/glm-5.1 opencode-go/glm-5.2 opencode-go/glm-5.3 \\\n'
   printf '  opencode-go/qwen3.7-max opencode-go/qwen3.8-max opencode-go/deepseek-v4-pro \\\n'
   printf '  opencode-go/mimo-v2.5-pro opencode-go/minimax-m3 opencode-go/kimi-k2.7-code \\\n'
-  printf '  opencode-go/deepseek-v4-flash opencode-go/hy4-preview \\\n'
+  printf '  opencode-go/deepseek-v4-flash opencode-go/hy4-preview opencode-go/qwen3.8-flash \\\n'
+  printf '  opencode-go/longcat-2.0 opencode-go/qwen3.7-plus \\\n'
   printf '  opencode-go/kimi-k2.6 opencode-go/kimi-k3 opencode-go/gpt-5.6-luna opencode-go/grok-4.6 opencode-go/hy3\n'
 } > "${TMP}/bin/opencode"
 chmod +x "${TMP}/bin/opencode"
@@ -39,7 +40,7 @@ field() { python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(jso
 out="$(pi show 2>&1)"
 grep -q 'absent — all defaults' <<< "${out}"; check $? 'show works with no config file at all'
 grep -q 'glm-5.2' <<< "${out}";               check $? 'show lists the built-in model defaults'
-grep -q 'low    deepseek mimo qwen' <<< "${out}"; check $? 'show lists the built-in tier rosters'
+grep -q 'low    deepseekflash mimo longcat' <<< "${out}"; check $? 'show lists the built-in tier rosters'
 grep -q 'qwen3.8-max' <<< "${out}";           check $? 'show lists the on-demand models'
 grep -q 'never on the Go plan' <<< "${out}"; check $? 'show lists the barred vendors separately from on-demand'
 grep -q 'grok' <<< "${out}";                  check $? 'show names grok as barred'
@@ -67,12 +68,12 @@ pi model qwen glm-5.1 >/dev/null 2>&1;        [[ $? -ne 0 ]]; check $? 'two fami
 
 # Pinning to an ON-DEMAND alias is allowed but must be called out at write time — otherwise the
 # operator only discovers the substitution in a coverage footer, mid-review.
-out="$(pi model glm glm-5.3 2>&1)"
+out="$(pi model qwenflash qwen3.8-max 2>&1)"
 grep -q 'ON-DEMAND' <<< "${out}";             check $? 'pinning an on-demand alias warns that runs will use the stand-in'
-grep -q 'glm-5.2' <<< "${out}";               check $? 'the warning names the stand-in that will actually run'
+grep -q 'qwen3.7-max' <<< "${out}";           check $? 'the warning names the stand-in that will actually run'
 grep -q 'ON-DEMAND' <<< "$(pi doctor 2>&1)";  check $? 'doctor flags a family pinned to an on-demand model'
 pi doctor >/dev/null 2>&1;                    check $? 'an on-demand pin is a note, not a doctor failure'
-pi model glm glm-5.1 >/dev/null 2>&1
+pi model qwenflash --unset >/dev/null 2>&1
 pi --no-verify model glm nope-9 >/dev/null 2>&1; check $? '--no-verify allows an unverifiable alias (offline escape hatch)'
 pi model glm --unset >/dev/null 2>&1;         check $? 'a model override can be removed'
 grep -q 'nope-9' <<< "$(pi dump)";            [[ $? -ne 0 ]]; check $? 'the removed override is really gone'

@@ -36,29 +36,50 @@ const base = { target: 'x', workdir: '/tmp/x' }
 
 // --- Defaults ------------------------------------------------------------------------------------
 const def = await runEngine({ ...base, tier: 'med' })
-check('med default panel is glm + qwen + deepseek + kimicode',
-  def.leaves.join(',') === 'opencode-go/glm-5.2,opencode-go/qwen3.7-max,opencode-go/deepseek-v4-flash,opencode-go/kimi-k2.7-code')
-check('low default panel drops minimax and keeps deepseek',
+check('med default panel is glm53 + deepseek-flash + qwen-flash + kimicode + hy3',
+  def.leaves.join(',') === 'opencode-go/glm-5.3,opencode-go/deepseek-v4-flash,opencode-go/qwen3.8-flash,opencode-go/kimi-k2.7-code,opencode-go/hy3')
+check('low default panel is the three cheap arms',
   (await runEngine({ ...base, tier: 'low' })).leaves.join(',') ===
-  'opencode-go/deepseek-v4-flash,opencode-go/mimo-v2.5-pro,opencode-go/qwen3.7-max')
+  'opencode-go/deepseek-v4-flash,opencode-go/mimo-v2.5-pro,opencode-go/longcat-2.0')
+// The expensive flagship earns its slot ONLY at pre-release stakes. If it ever leaks into low or med,
+// the council quietly gets several times more expensive per run.
+check('qwen3.7-max is high-only',
+  !(await runEngine({ ...base, tier: 'low' })).leaves.includes('opencode-go/qwen3.7-max') &&
+  !def.leaves.includes('opencode-go/qwen3.7-max') &&
+  (await runEngine({ ...base, tier: 'high' })).leaves.includes('opencode-go/qwen3.7-max'))
+// pro at high, flash at low/med — two families precisely because one family is one alias.
+check('deepseek runs PRO at high and FLASH below it',
+  (await runEngine({ ...base, tier: 'high' })).leaves.includes('opencode-go/deepseek-v4-pro') &&
+  def.leaves.includes('opencode-go/deepseek-v4-flash'))
+check('hy runs GA hy3 at med and the PREVIEW only at high',
+  def.leaves.includes('opencode-go/hy3') &&
+  (await runEngine({ ...base, tier: 'high' })).leaves.includes('opencode-go/hy4-preview'))
 check('high default panel is every family except luna',
   (await runEngine({ ...base, tier: 'high' })).leaves.length === 7)
 // kimicode is an ORDINARY family now — it must fan out through oppy like any other leaf, NOT through
 // the kimi-reviewer CLI agent. If this ever regresses, the panel silently loses its Go-plan Kimi.
 check('the Go-plan kimi rides the oppy path, not the CLI agent',
   def.leaves.includes('opencode-go/kimi-k2.7-code'))
+// qwen3.7-plus is barred by NAME, while its siblings stay reachable — the bar must not overreach.
+check('qwen3.7-plus never runs, at any tier, however it is reached',
+  !(await runEngine({ ...base, tier: 'med', models: { qwenflash: 'qwen3.7-plus' } })).leaves.includes('opencode-go/qwen3.7-plus'))
+check('consent does NOT unlock qwen3.7-plus',
+  !(await runEngine({ ...base, tier: 'med', models: { qwenflash: 'qwen3.7-plus' }, allowOnDemand: ['qwen3.7-plus'] })).leaves.includes('opencode-go/qwen3.7-plus'))
+check('barring qwen3.7-plus does not bar its siblings',
+  def.leaves.includes('opencode-go/qwen3.8-flash') &&
+  (await runEngine({ ...base, tier: 'high' })).leaves.includes('opencode-go/qwen3.7-max'))
 check('a clean run reports no downgrades in the footer',
   !def.result.coverage.includes('DOWNGRADED') && def.result.downgraded.length === 0)
 
 // --- models overlay ------------------------------------------------------------------------------
-// glm-5.1 rather than glm-5.3 on purpose: 5.3 is ON-DEMAND (it would be downgraded here, which is
-// tested further down) — this case is about the plain overlay, so it needs an ordinary auto alias.
-const bumped = await runEngine({ ...base, tier: 'med', models: { glm: 'glm-5.1' } })
+// Repoint `glm53`, not `glm`: glm is the CHAIRMAN family and sits in no tier, so overlaying it would
+// prove nothing about leaves. glm-5.1 is an ordinary ungated alias, which is what this case needs.
+const bumped = await runEngine({ ...base, tier: 'med', models: { glm53: 'glm-5.1' } })
 check('models overlay repoints one family and leaves the rest alone',
-  bumped.leaves.includes('opencode-go/glm-5.1') && bumped.leaves.includes('opencode-go/qwen3.7-max') &&
-  !bumped.leaves.includes('opencode-go/glm-5.2'))
+  bumped.leaves.includes('opencode-go/glm-5.1') && bumped.leaves.includes('opencode-go/kimi-k2.7-code') &&
+  !bumped.leaves.includes('opencode-go/glm-5.3'))
 check('models overlay accepts a fully-qualified alias too',
-  (await runEngine({ ...base, tier: 'med', models: { glm: 'opencode-go/glm-5.1' } })).leaves.includes('opencode-go/glm-5.1'))
+  (await runEngine({ ...base, tier: 'med', models: { glm53: 'opencode-go/glm-5.1' } })).leaves.includes('opencode-go/glm-5.1'))
 check('models overlay can introduce a NEW family usable in a tier',
   (await runEngine({ ...base, tier: 'low', models: { hy3: 'hy3' }, tiers: { low: ['hy3'] } })).leaves.join(',') === 'opencode-go/hy3')
 check('two families on one alias throws (panel would run the same model twice)',
@@ -98,7 +119,7 @@ check('an invalid synthesis effort throws',
 // --- on-demand gate ------------------------------------------------------------------------------
 // The whole point: an on-demand model must NEVER run just because it is configured. Without per-run
 // consent the council runs the stand-in AND says so — soft-degrade, never silent.
-const ungated = await runEngine({ ...base, tier: 'med', models: { qwen: 'qwen3.8-max' } })
+const ungated = await runEngine({ ...base, tier: 'med', models: { qwenflash: 'qwen3.8-max' } })
 check('an unconfirmed on-demand model is downgraded, not run',
   ungated.leaves.includes('opencode-go/qwen3.7-max') && !ungated.leaves.includes('opencode-go/qwen3.8-max'))
 check('the downgrade is visible in the coverage footer, not just the log',
@@ -106,7 +127,7 @@ check('the downgrade is visible in the coverage footer, not just the log',
 check('the downgrade is also a structured field on the result',
   ungated.result.downgraded.join(',') === 'qwen3.8-max→qwen3.7-max')
 
-const consented = await runEngine({ ...base, tier: 'med', models: { qwen: 'qwen3.8-max' }, allowOnDemand: ['qwen3.8-max'] })
+const consented = await runEngine({ ...base, tier: 'med', models: { qwenflash: 'qwen3.8-max' }, allowOnDemand: ['qwen3.8-max'] })
 check('explicit per-run consent runs the real on-demand model',
   consented.leaves.includes('opencode-go/qwen3.8-max') && consented.result.downgraded.length === 0)
 check('consent does not leak into the footer as a downgrade',
@@ -160,6 +181,9 @@ check('an Anthropic chairman is untouched by the gate',
 
 check('a downgrade CHAIN in onDemand config throws (a stand-in must be an auto model)',
   /chain/.test(await throws({ ...base, onDemand: { 'glm-5.1': 'qwen3.8-max' } })))
+// glm-5.3 was gated until 2026-09-02 and is now an ordinary leaf — this guards the un-gating.
+check('glm-5.3 is NOT gated any more — it runs as the med/high leaf it is',
+  def.leaves.includes('opencode-go/glm-5.3') && def.result.downgraded.length === 0)
 check('a neverOnGo fallback that is itself on-demand throws',
   /always runs|on-demand/.test(await throws({ ...base, neverOnGo: { acme: 'qwen3.8-max' } })))
 check('a neverOnGo fallback barred by ANOTHER vendor rule throws',
@@ -167,20 +191,17 @@ check('a neverOnGo fallback barred by ANOTHER vendor rule throws',
 check('an on-demand model standing in for itself throws',
   /itself|stand-in/.test(await throws({ ...base, onDemand: { 'glm-5.1': 'glm-5.1' } })))
 
-// The flagship must not silently get more expensive: glm-5.3 is priced out of the flat plan, so it
-// is on-demand and the chair/leaf fall back to 5.2 unless the operator confirms it for that run.
-const glm53 = await runEngine({ ...base, tier: 'med', models: { glm: 'glm-5.3' } })
-check('glm-5.3 is on-demand — a pinned glm-5.3 runs glm-5.2 instead',
-  glm53.leaves.includes('opencode-go/glm-5.2') && !glm53.leaves.includes('opencode-go/glm-5.3'))
-check('the glm downgrade is reported, not silent',
-  glm53.result.coverage.includes('glm-5.3→glm-5.2'))
-check('a confirmed glm-5.3 runs for real',
-  (await runEngine({ ...base, tier: 'med', models: { glm: 'glm-5.3' }, allowOnDemand: ['glm-5.3'] }))
-    .leaves.includes('opencode-go/glm-5.3'))
-check('an unconfirmed glm-5.3 chairman stands down to glm-5.2',
-  (await runEngine({ ...base, tier: 'low', chairmanModel: 'glm-5.3' })).result.chairman === 'opencode-go/glm-5.2')
+// glm-5.3 was gated until 2026-09-02. It is now an ordinary leaf, and the chair may be seated on it
+// without consent — the two assertions below are the ones that would fail if the gate crept back.
+check('a glm-5.3 chairman is seated, not stood down',
+  (await runEngine({ ...base, tier: 'low', chairmanModel: 'glm-5.3' })).result.chairman === 'opencode-go/glm-5.3')
+check('the default chairman is still 5.2 — un-gating 5.3 must not move the chair',
+  (await runEngine({ ...base, tier: 'low' })).result.chairman === 'opencode-go/glm-5.2')
+check('pi.json can put a model back under the gate',
+  (await runEngine({ ...base, tier: 'med', onDemand: { 'glm-5.3': 'glm-5.2' } }))
+    .result.downgraded.join(',') === 'glm-5.3→glm-5.2')
 check('pi.json can retire an on-demand entry by pointing a new one at an auto model',
-  (await runEngine({ ...base, tier: 'low', models: { deepseek: 'deepseek-v4-flash' }, onDemand: { 'deepseek-v4-flash': 'deepseek-v4-pro' } }))
+  (await runEngine({ ...base, tier: 'low', onDemand: { 'deepseek-v4-flash': 'deepseek-v4-pro' } }))
     .result.downgraded.join(',') === 'deepseek-v4-flash→deepseek-v4-pro')
 
 // Consent for something that is not on-demand is harmless — it must NOT abort a review (config
@@ -191,6 +212,6 @@ check('stray consent is noted and ignored, never fatal',
 
 // The panel roster must be legible without reading prompts — operators diagnose from this line.
 check('the engine logs the resolved panel',
-  def.logs.some(l => /^panel: /.test(l)) && def.result.panel.join(',') === 'glm-5.2,qwen3.7-max,deepseek-v4-flash,kimi-k2.7-code')
+  def.logs.some(l => /^panel: /.test(l)) && def.result.panel.join(',') === 'glm-5.3,deepseek-v4-flash,qwen3.8-flash,kimi-k2.7-code,hy3')
 
 process.exit(ok ? 0 : 1)

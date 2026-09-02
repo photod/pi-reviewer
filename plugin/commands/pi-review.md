@@ -35,7 +35,7 @@ Reconfiguration lives in a config the command reads — NOT in per-call args (th
    them on top of the always-on default lenses and ignores unknown names with a note. Valid on-demand
    lenses: `ux`, `blastradius`, `security`, `simplicity`, `honesty` (see `lenses.md`).
 2b. **On-demand models (`--with <alias>`, repeatable).** Some models are opt-in per run — never
-   automatic — because of cost/quota/policy (`glm-5.3`, `qwen3.8-max`, `kimi-k3`, `grok-4.6` by default; the map
+   automatic — because of cost/quota/policy (`qwen3.8-max` by default; the map
    lives in pi.json `onDemand`). `--with` is a REQUEST, not the consent. Before passing it on:
    - **Get the operator's explicit confirmation in THIS run** (AskUserQuestion, or an unambiguous
      yes already in their message). A standing config can NEVER grant this — that is precisely why
@@ -46,8 +46,13 @@ Reconfiguration lives in a config the command reads — NOT in per-call args (th
    - Same gate for a chairman or a configured family that resolves to an on-demand model:
      `allowOnDemand` is the only unlock, and only for that one run.
 
-Tiers (DEFAULTS — reconfigurable per host in pi.json, see `/pi-config`): `low` = deepseek + mimo +
-qwen · `med` (default) = glm + qwen + deepseek + kimicode · `high` = all six + high-effort synth.
+Tiers (DEFAULTS — reconfigurable per host in pi.json, see `/pi-config`):
+`low` = deepseekflash + mimo + longcat (three cheap arms, three labs) ·
+`med` (default) = glm53 + deepseekflash + qwenflash + kimicode + hy3 ·
+`high` = glm53 + qwen + minimax + deepseek(PRO) + mimo + kimicode + hy(preview) + high-effort synth.
+Where a vendor ships a flagship and a cheap variant, BOTH are families (`deepseek`/`deepseekflash`,
+`qwen`/`qwenflash`, `hy`/`hy3`, `glm`/`glm53`) — a family maps to exactly one alias, so "pro at high,
+flash at med" is only expressible that way. `qwen3.7-max` is the priciest leaf and is high-only.
 (`max` / `ultra` are accepted as aliases for `high` — people forget which word is the top.)
 
 ## Housekeeping asks (preview masking) — handle in chat, no council

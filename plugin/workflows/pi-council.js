@@ -29,15 +29,23 @@ if (!A || typeof A !== 'object' || Array.isArray(A)) A = {}  // JSON.parse('null
 // confusion the labels exist to prevent. 'luna' is in NO tier by default — it exists as the
 // stand-in every barred grok becomes (see BASE_NEVER_ON_GO) and as a nameable chairman.
 // (cody/codex is intentionally NOT a family — operator spec 2026-07-11.)
+// Where a vendor ships both a flagship and a cheap variant, BOTH get a family: a family maps to exactly
+// one alias, so "pro at high, flash at med" is only expressible as two families. That is why the
+// registry has deepseek/deepseekflash, qwen/qwenflash, hy/hy3 and glm/glm53 as separate entries.
 const BASE_MODELS = {
-  glm:      'opencode-go/glm-5.2',
-  qwen:     'opencode-go/qwen3.7-max',
-  minimax:  'opencode-go/minimax-m3',
-  deepseek: 'opencode-go/deepseek-v4-flash',
-  mimo:     'opencode-go/mimo-v2.5-pro',
-  kimicode: 'opencode-go/kimi-k2.7-code',
-  hy:       'opencode-go/hy4-preview',
-  luna:     'opencode-go/gpt-5.6-luna',
+  glm:           'opencode-go/glm-5.2',        // default chairman; in no tier
+  glm53:         'opencode-go/glm-5.3',        // med + high leaf
+  qwen:          'opencode-go/qwen3.7-max',    // high only — the priciest leaf on the panel
+  qwenflash:     'opencode-go/qwen3.8-flash',
+  minimax:       'opencode-go/minimax-m3',
+  deepseek:      'opencode-go/deepseek-v4-pro',
+  deepseekflash: 'opencode-go/deepseek-v4-flash',
+  mimo:          'opencode-go/mimo-v2.5-pro',
+  kimicode:      'opencode-go/kimi-k2.7-code',
+  hy3:           'opencode-go/hy3',            // GA — the med-tier Tencent leaf
+  hy:            'opencode-go/hy4-preview',    // PREVIEW — high only, vendor may change it underneath us
+  longcat:       'opencode-go/longcat-2.0',
+  luna:          'opencode-go/gpt-5.6-luna',
 }
 // Normalize a model token to a full `opencode-go/<alias>`: strips a leading provider prefix, quotes
 // carried in from $ARGUMENTS, and case. Returns null if what's left cannot be an alias — callers
@@ -87,8 +95,9 @@ const MODELS = mergeModels(BASE_MODELS, A.models)
 // says "always use grok" IS the automatic use this table forbids); pi.json may only reshape the map.
 // Keyed bare alias → bare alias of the stand-in.
 const BASE_ON_DEMAND = {
+  // glm-5.3 used to sit here. It is now an ordinary med/high leaf (the `glm53` family) by operator
+  // decision 2026-09-02 — the gate was costing more in downgraded reviews than it saved.
   'qwen3.8-max': 'qwen3.7-max',
-  'glm-5.3': 'glm-5.2',   // costs a fortune on the Go plan — the flagship stays 5.2 unless confirmed
 }
 // --- Never on the Go plan — substituted ALWAYS, consent cannot unlock it ----
 // Stronger than on-demand, and deliberately not the same mechanism: on-demand asks, this one simply
@@ -108,6 +117,10 @@ const BASE_NEVER_ON_GO = {
   // operator's OWN subscription), so running it here would spend council quota on a model the CLI
   // already provides and put two near-identical Kimis on one panel.
   kimi: 'kimi-k2.7-code',
+  // Not a vendor but a model LINE — the key is a name prefix, so it bars qwen3.7-plus (and any
+  // qwen3.7-plus-*) while leaving qwen3.7-max and qwen3.8-* alone. Operator verdict 2026-09-02: this
+  // one is not worth a panel slot at any price. NOTE qwen3.6-plus is on the plan and is NOT barred.
+  'qwen3.7-plus': 'qwen3.7-max',
 }
 // A family rule matches the alias itself or anything under it, on a SEGMENT boundary only — a bare
 // prefix test would swallow unrelated models that merely start with the same letters.
@@ -144,7 +157,7 @@ function mergeNeverOnGo(base, override) {
     for (const key of Object.keys(override)) {
       const fam = String(key).trim().toLowerCase().replace(/^opencode-go\//, '')
       const to = normAlias(override[key])
-      if (!/^[a-z][a-z0-9-]*$/.test(fam)) throw new Error(`invalid vendor '${key}' in 'neverOnGo' config — use a vendor name like 'grok'`)
+      if (!/^[a-z][a-z0-9._-]*$/.test(fam)) throw new Error(`invalid key '${key}' in 'neverOnGo' config — use a vendor name ('grok') or a model line ('qwen3.7-plus')`)
       if (!to) throw new Error(`invalid replacement for never-on-Go vendor '${fam}': ${JSON.stringify(override[key])} — every barred vendor needs a stand-in that DOES run`)
       out[fam] = to.replace('opencode-go/', '')
     }
@@ -238,9 +251,9 @@ function resolveModel(token) {
 // puts deepseek in all three (strong per-model unique-find rate) and keeps minimax at `high` only,
 // where breadth is the point (it is the weakest single arm in EXPERIMENT.md's triaged record).
 const BASE_TIERS = {
-  low:  { families: ['deepseek', 'mimo', 'qwen'], kimiCli: false, effort: 'low' },
-  med:  { families: ['glm', 'qwen', 'deepseek', 'kimicode'], kimiCli: false, effort: 'medium' },
-  high: { families: ['glm', 'qwen', 'minimax', 'deepseek', 'mimo', 'kimicode', 'hy'], kimiCli: false, effort: 'high' },
+  low:  { families: ['deepseekflash', 'mimo', 'longcat'], kimiCli: false, effort: 'low' },
+  med:  { families: ['glm53', 'deepseekflash', 'qwenflash', 'kimicode', 'hy3'], kimiCli: false, effort: 'medium' },
+  high: { families: ['glm53', 'qwen', 'minimax', 'deepseek', 'mimo', 'kimicode', 'hy'], kimiCli: false, effort: 'high' },
 }
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max'])
 // Overlay the host's `tiers`. A tier may be given as a bare family list (["glm","qwen"]) or as an
