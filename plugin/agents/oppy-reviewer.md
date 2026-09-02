@@ -127,6 +127,18 @@ leaf `opencode run`; do not invoke a leaf directly.
   plea) AND keeps the model focused instead of thrashing tools. Verified 2026-07-11: with `--agent
   plan` + code-in-prompt, a review returns in ~2s. Without it (default `build` agent), the model can
   wander the repo agentically for 15+ minutes and emit nothing — the observed failure mode.
+
+  **It can SILENTLY not take effect, and then you have no read-only guarantee at all.** If `plan` is
+  not registered as a PRIMARY agent on the host, opencode prints
+  `agent "plan" is a subagent, not a primary agent. Falling back to default agent`
+  on stderr and runs the **default, write-capable** agent instead — exit code 0, review still returned,
+  nothing obviously wrong. Observed 2026-09-02 on opencode 1.18.26 where a custom agent set had made
+  every stock agent a subagent (`opencode agent list` showed `plan (subagent)`, `build (subagent)`).
+  So: **watch stderr for that fallback line. If it appears, STOP and return
+  `status: UNAVAILABLE - --agent plan fell back to the default write-capable agent; read-only not
+  enforced` rather than relaying a review.** A review obtained without the sandbox is not the review
+  that was asked for, and the caller cannot tell the difference from the output alone.
+  `opencode agent list` is the direct check; `plan` must say `primary`, not `subagent`.
 - `--variant`: reasoning-effort hint, **provider-specific and not a fixed enum** — `opencode run --help`
   only guarantees it's a string like "high", "max", "minimal"; not every provider supports every
   value. Default to `medium` unless told otherwise; if a call errors on the variant value, retry

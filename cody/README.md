@@ -5,7 +5,7 @@ agents backed by the **OpenAI Codex CLI** (`codex`), a genuinely non-Claude, non
 
 - **`cody-reviewer`** — a read-only code review from Codex, coached with the same **Fable review scaffold**
   the PI council uses (the five strong-model moves). A relay: it returns *Codex's* findings, never its own.
-- **`cody-worker`** — Codex in **write mode** (`codex exec --full-auto`): delegate a scoped, mechanical
+- **`cody-worker`** — Codex in **write mode** (`codex exec --sandbox workspace-write`): delegate a scoped, mechanical
   change and it edits on disk; you verify. For bounded work, not sprawling features.
 
 This is deliberately separate from the main `pi` plugin (which is a self-contained opencode-go council —
@@ -41,7 +41,7 @@ Using the wrong form fails with "agent not found", not with a bad review.
 
 ## Honest caveats
 
-- **`cody-worker` writes to disk.** `codex exec --full-auto` is workspace-write with no approval prompt.
+- **`cody-worker` writes to disk.** `codex exec --sandbox workspace-write -c approval_policy=never` applies edits with no approval prompt.
   It's scoped by the prompt + a post-hoc `git diff` check, **not** an OS sandbox — point it only at code
   you can share with OpenAI, and review the diff before committing (the agent never commits).
 - **`cody-reviewer` is read-only** (`--sandbox read-only`) and sends the target code to OpenAI's Codex —

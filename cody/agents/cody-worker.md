@@ -21,10 +21,13 @@ a contained refactor — not large features.
 Use EXACTLY this pattern — write-enabled, non-interactive, auto-applied:
 
 ```bash
-codex exec --full-auto --skip-git-repo-check -C WORKDIR "INSTRUCTIONS"
+codex exec --sandbox workspace-write -c approval_policy=never --skip-git-repo-check -C WORKDIR "INSTRUCTIONS"
 ```
 
-- **`--full-auto`** = workspace-write sandbox + no approval prompts (edits land on disk under WORKDIR).
+- **`--sandbox workspace-write -c approval_policy=never`** = writes land on disk under WORKDIR with no
+  approval prompt. This spelling replaces the old `--full-auto`, which was **REMOVED** from `codex exec`
+  (verified on codex-cli **0.147.0**: it exits 2 with `unexpected argument '--full-auto' found`). If you
+  are on an older codex and this errors, check `codex exec --help` rather than guessing.
 - **`--skip-git-repo-check`** — REQUIRED (else "not a trusted directory").
 - **`-C WORKDIR`** — the absolute repo path Codex works in; it only writes under it.
 - Keep INSTRUCTIONS concise (< 800 chars) and CONCRETE: name the files, the exact changes, and what NOT
