@@ -175,6 +175,12 @@ is_denied() {
 kept=()
 while IFS= read -r line; do
   [ -z "$line" ] && continue
+  # `git ls-files` reports a SUBMODULE as a single entry that is a DIRECTORY on disk, not a file.
+  # An uninitialized one is an empty dir. Left in, it reaches pi-stage.sh, whose `cp` refuses it
+  # ("is a directory (not copied)") and aborts the whole staging run - so a repo with any
+  # uninitialized submodule could not be reviewed at all. Keep only regular files. This also drops
+  # broken symlinks, which fail the same way. Found by a live run against a repo with 5 submodules.
+  [ -f "${repo_dir}/${line}" ] || continue
   if ! is_denied "$line"; then
     kept+=("$line")
   fi
