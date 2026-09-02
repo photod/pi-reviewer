@@ -32,6 +32,20 @@ if (!A || typeof A !== 'object' || Array.isArray(A)) A = {}  // JSON.parse('null
 // Where a vendor ships both a flagship and a cheap variant, BOTH get a family: a family maps to exactly
 // one alias, so "pro at high, flash at med" is only expressible as two families. That is why the
 // registry has deepseek/deepseekflash, qwen/qwenflash, hy/hy3 and glm/glm53 as separate entries.
+// --- DEEPSEEK KILL SWITCH — one line, flip it and every tier follows -------
+// BOTH deepseek aliases are REGION-LOCKED on the opencode-go plan: `deepseek-v4-pro` AND
+// `deepseek-v4-flash` return HTTP 403 `RegionError` ("only available hosted in China and requires
+// explicit opt in"), verified by direct probe 2026-09-02. Left on, every tier carried a
+// guaranteed-dead leaf, and NO amount of billing top-up fixes it. So deepseek ships OFF: the family
+// stays in the registry (the aliases are still nameable/configurable) but is stripped from every tier.
+//
+// RE-ENABLE, after opting in at https://opencode.ai/workspace/<workspace-id>/go — one sed, one line:
+//   sed -i '' 's/^const DEEPSEEK_ENABLED = false/const DEEPSEEK_ENABLED = true/' pi-council.js
+// and the same one-liner against scripts/pi-config.sh's DEEPSEEK_ENABLED=0. Nothing else to touch:
+// BASE_TIERS below still LISTS the deepseek families, so flipping this restores them everywhere.
+const DEEPSEEK_ENABLED = false
+const DEEPSEEK_FAMILIES = ['deepseek', 'deepseekflash']
+
 const BASE_MODELS = {
   glm:           'opencode-go/glm-5.2',        // default chairman; in no tier
   glm53:         'opencode-go/glm-5.3',        // med + high leaf
@@ -51,14 +65,37 @@ const BASE_MODELS = {
 // carried in from $ARGUMENTS, and case. Returns null if what's left cannot be an alias — callers
 // decide how to fail. NOTE: this validates SHAPE, not existence; only `pi-config.sh doctor` can
 // check an alias against the live plan (this script has no fs and cannot run `opencode models`).
+// --- DEFAULT PROVIDER — one line, sed-switchable ---------------------------
+// A BARE alias ('glm-5.2') is resolved against this provider. A token that already names one
+// ('kimi-for-coding/k3', 'openai/gpt-5.4', 'opencode/big-pickle') is honoured AS GIVEN — which is what
+// lets the council run somewhere that actually has credit when the Go plan is dry or region-gated.
+// Switch the default wholesale with one sed:
+//   sed -i '' "s|^const DEFAULT_PROVIDER = .*|const DEFAULT_PROVIDER = 'opencode'|" pi-council.js
+const DEFAULT_PROVIDER = 'opencode-go'
+// Accepts `model` (gets DEFAULT_PROVIDER) or `provider/model` (kept verbatim). Returns null if either
+// half cannot be an identifier — callers decide how to fail. Validates SHAPE, not existence; only
+// `pi-config.sh doctor` can check an alias against the live plan.
 function normAlias(token) {
-  const bare = String(token == null ? '' : token).trim().replace(/^["']+|["']+$/g, '').trim()
-    .replace(/^opencode-go\//i, '').toLowerCase()
-  return /^[a-z0-9][a-z0-9._-]*$/.test(bare) ? `opencode-go/${bare}` : null
+  const raw = String(token == null ? '' : token).trim().replace(/^["']+|["']+$/g, '').trim().toLowerCase()
+  if (!raw) return null
+  const slash = raw.indexOf('/')
+  const provider = slash === -1 ? DEFAULT_PROVIDER : raw.slice(0, slash)
+  const model = slash === -1 ? raw : raw.slice(slash + 1)
+  const ok = /^[a-z0-9][a-z0-9._-]*$/
+  return ok.test(provider) && ok.test(model) ? `${provider}/${model}` : null
 }
-// Display label for a full alias ('opencode-go/glm-5.2' → 'glm-5.2') — used in leaf labels, the panel
-// log line and the coverage footer.
-const labelOf = alias => alias.split('/')[1] || alias
+// Display label. The default provider is implied and stripped ('opencode-go/glm-5.2' -> 'glm-5.2');
+// any OTHER provider stays visible, because 'k3' alone would not tell the chairman which account and
+// which weights it came from.
+const labelOf = alias => {
+  const slash = alias.indexOf('/')
+  if (slash === -1) return alias
+  return alias.slice(0, slash) === DEFAULT_PROVIDER ? alias.slice(slash + 1) : alias
+}
+// The on-demand and never-on-Go tables are about the GO PLAN's cost and access rules. A model reached
+// through another provider is another account entirely, so those rules must not follow it there:
+// `kimi-for-coding/k3` is K3 on the operator's own subscription and is NOT the barred Go-plan kimi.
+const isGoPlan = alias => String(alias).startsWith(`${DEFAULT_PROVIDER}/`)
 // Overlay the host's `models` onto the defaults: sparse (set one family, inherit the rest), and able
 // to introduce a NEW family. Fails LOUD on anything malformed — a typo'd family name that silently
 // did nothing would leave the operator staring at a panel that ignored their config. The duplicate
@@ -199,12 +236,13 @@ const refusedConsent = [...consentedOnDemand].filter(a => neverOnGoReplacement(a
 // difference between the two tables, and checking consent first would hand `--with grok-4.6` the
 // unlock it must never get. Only then does the consent-unlockable on-demand table get a say.
 function gateOnDemand(alias, consented, onDemandTable, barred) {
-  const bare = String(alias).replace(/^opencode-go\//, '')
+  if (!isGoPlan(alias)) return { alias: String(alias), swap: null }   // another provider, another account, another rulebook
+  const bare = String(alias).slice(DEFAULT_PROVIDER.length + 1)
   const forced = barred(bare)
-  if (forced) return { alias: `opencode-go/${forced}`, swap: `${bare}→${forced}` }
+  if (forced) return { alias: `${DEFAULT_PROVIDER}/${forced}`, swap: `${bare}→${forced}` }
   const to = onDemandTable[bare]
-  if (!to || consented.has(bare)) return { alias: `opencode-go/${bare}`, swap: null }
-  return { alias: `opencode-go/${to}`, swap: `${bare}→${to}` }
+  if (!to || consented.has(bare)) return { alias: `${DEFAULT_PROVIDER}/${bare}`, swap: null }
+  return { alias: `${DEFAULT_PROVIDER}/${to}`, swap: `${bare}→${to}` }
 }
 const downgrades = []   // swap notes for models actually USED this run — surfaced in the footer
 function gate(alias) {
@@ -235,6 +273,12 @@ function resolveModel(token) {
   // gate substitute and REPORT the refusal; rejecting instead would tell the operator that a model
   // they can see on their plan does not exist, which is both false and the wrong lesson.
   if (neverOnGoReplacement(bare)) return full
+  // An alias that names a NON-default provider is taken at face value. There is no registry to check
+  // it against - the shipped one describes the Go plan - and rejecting it would make the whole point
+  // of DEFAULT_PROVIDER unreachable: you could configure another provider but never name one for a
+  // chairman or a --with leaf. The operator typed a provider explicitly; that is the consent. A wrong
+  // alias still fails loudly at the backend, which is where an unknown model belongs.
+  if (!isGoPlan(full)) return full
   return MODELS[bare] || null
 }
 
@@ -297,7 +341,18 @@ function mergeTiers(base, override, models) {
   }
   return out
 }
-const TIERS = mergeTiers(BASE_TIERS, A.tiers, MODELS)
+// Strip the region-locked family from the DEFAULTS, before the host's overlay is applied — so
+// BASE_TIERS keeps listing deepseek (flipping the switch above is genuinely all it takes), while a
+// host that explicitly names it in pi.json `tiers` still gets it. Defaults are a suggestion; an
+// explicit config is an instruction, and this must not silently override one.
+// A tier is never emptied: every shipped tier retains at least two other families.
+const SHIPPED_TIERS = DEEPSEEK_ENABLED ? BASE_TIERS : Object.fromEntries(
+  Object.entries(BASE_TIERS).map(([name, spec]) => {
+    const families = spec.families.filter(f => !DEEPSEEK_FAMILIES.includes(f))
+    return [name, { ...spec, families: families.length ? families : spec.families }]
+  })
+)
+const TIERS = mergeTiers(SHIPPED_TIERS, A.tiers, MODELS)
 // opencode --variant normalizer: keep the low/medium/high vocabulary, accept shorthand (med→medium,
 // min→minimal), pass valid tokens through; fall back to 'medium' so a leaf never silently loses effort.
 const VARIANT_ALIAS = { min: 'minimal', minimal: 'minimal', low: 'low', med: 'medium', medium: 'medium', high: 'high', max: 'max', xhigh: 'high' }

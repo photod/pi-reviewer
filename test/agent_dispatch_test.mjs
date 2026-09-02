@@ -34,9 +34,10 @@ async function runEngine(args) {
   return { dispatched, result }
 }
 
-// `high` + kimiCli exercises every dispatch path at once: 7 oppy leaves (the high tier, kimicode and
-// hy included), the separate Kimi CLI leaf, and the cheap chairman's synthesis call (oppy too).
-const HIGH_OPPY_LEAVES = 7
+// `high` + kimiCli exercises every dispatch path at once: the high-tier oppy leaves, the separate Kimi
+// CLI leaf, and the cheap chairman's synthesis call (which routes through oppy too). Six, not seven:
+// deepseek ships OFF (region-locked on the Go plan), so it is stripped from the default tiers.
+const HIGH_OPPY_LEAVES = 6
 const base = { tier: 'high', tiers: { high: { kimiCli: true } }, target: 'x', workdir: '/tmp/x' }
 
 const plugin = await runEngine({ ...base })

@@ -36,11 +36,15 @@ const base = { target: 'x', workdir: '/tmp/x' }
 
 // --- Defaults ------------------------------------------------------------------------------------
 const def = await runEngine({ ...base, tier: 'med' })
-check('med default panel is glm53 + deepseek-flash + qwen-flash + kimicode + hy3',
-  def.leaves.join(',') === 'opencode-go/glm-5.3,opencode-go/deepseek-v4-flash,opencode-go/qwen3.8-flash,opencode-go/kimi-k2.7-code,opencode-go/hy3')
-check('low default panel is the three cheap arms',
+// deepseek is OFF by default (region-locked on the Go plan), so it is stripped from every tier -
+// these are the EFFECTIVE panels. Flipping DEEPSEEK_ENABLED restores it; BASE_TIERS still lists it.
+check('med default panel is glm53 + qwen-flash + kimicode + hy3, deepseek stripped',
+  def.leaves.join(',') === 'opencode-go/glm-5.3,opencode-go/qwen3.8-flash,opencode-go/kimi-k2.7-code,opencode-go/hy3')
+check('low default panel is the cheap arms, deepseek stripped',
   (await runEngine({ ...base, tier: 'low' })).leaves.join(',') ===
-  'opencode-go/deepseek-v4-flash,opencode-go/mimo-v2.5-pro,opencode-go/longcat-2.0')
+  'opencode-go/mimo-v2.5-pro,opencode-go/longcat-2.0')
+check('no tier ships a deepseek leaf while the kill switch is off',
+  !['low','med','high'].some(t => def.leaves.concat([]).some(l => l.includes('deepseek'))))
 // The expensive flagship earns its slot ONLY at pre-release stakes. If it ever leaks into low or med,
 // the council quietly gets several times more expensive per run.
 check('qwen3.7-max is high-only',
@@ -48,14 +52,14 @@ check('qwen3.7-max is high-only',
   !def.leaves.includes('opencode-go/qwen3.7-max') &&
   (await runEngine({ ...base, tier: 'high' })).leaves.includes('opencode-go/qwen3.7-max'))
 // pro at high, flash at low/med — two families precisely because one family is one alias.
-check('deepseek runs PRO at high and FLASH below it',
-  (await runEngine({ ...base, tier: 'high' })).leaves.includes('opencode-go/deepseek-v4-pro') &&
-  def.leaves.includes('opencode-go/deepseek-v4-flash'))
+// The family stays REGISTERED even while stripped from tiers, so a host can still name it explicitly.
+check('deepseek is still a known family, just not in any tier',
+  (await runEngine({ ...base, tier: 'low', tiers: { low: ['deepseek','mimo'] } })).leaves.includes('opencode-go/deepseek-v4-pro'))
 check('hy runs GA hy3 at med and the PREVIEW only at high',
   def.leaves.includes('opencode-go/hy3') &&
   (await runEngine({ ...base, tier: 'high' })).leaves.includes('opencode-go/hy4-preview'))
-check('high default panel is every family except luna',
-  (await runEngine({ ...base, tier: 'high' })).leaves.length === 7)
+check('high default panel is every family except luna and deepseek',
+  (await runEngine({ ...base, tier: 'high' })).leaves.length === 6)
 // kimicode is an ORDINARY family now — it must fan out through oppy like any other leaf, NOT through
 // the kimi-reviewer CLI agent. If this ever regresses, the panel silently loses its Go-plan Kimi.
 check('the Go-plan kimi rides the oppy path, not the CLI agent',
@@ -149,7 +153,7 @@ const grok = await runEngine({ ...base, tier: 'low', extraModels: ['grok-4.6'] }
 check('a barred grok leaf runs its stand-in (grok → luna)',
   grok.leaves.includes('opencode-go/gpt-5.6-luna') && !grok.leaves.includes('opencode-go/grok-4.6'))
 check('extraModels adds a leaf ON TOP of the tier',
-  grok.leaves.length === 4)
+  grok.leaves.length === 3)
 // The point of the whole table: --with is not a key to grok. A version bump must not become one either.
 check('consent does NOT unlock grok — it is priced out of the Go plan, period',
   !(await runEngine({ ...base, tier: 'low', extraModels: ['grok-4.6'], allowOnDemand: ['grok-4.6'] }))
@@ -201,17 +205,29 @@ check('pi.json can put a model back under the gate',
   (await runEngine({ ...base, tier: 'med', onDemand: { 'glm-5.3': 'glm-5.2' } }))
     .result.downgraded.join(',') === 'glm-5.3→glm-5.2')
 check('pi.json can retire an on-demand entry by pointing a new one at an auto model',
-  (await runEngine({ ...base, tier: 'low', onDemand: { 'deepseek-v4-flash': 'deepseek-v4-pro' } }))
-    .result.downgraded.join(',') === 'deepseek-v4-flash→deepseek-v4-pro')
+  (await runEngine({ ...base, tier: 'low', onDemand: { 'mimo-v2.5-pro': 'longcat-2.0' } }))
+    .result.downgraded.join(',') === 'mimo-v2.5-pro→longcat-2.0')
 
 // Consent for something that is not on-demand is harmless — it must NOT abort a review (config
 // errors above DO throw; a stale per-run flag does not).
 const stray = await runEngine({ ...base, tier: 'low', allowOnDemand: ['glm-5.2'] })
 check('stray consent is noted and ignored, never fatal',
-  stray.leaves.length === 3 && stray.logs.some(l => /allowOnDemand names non-on-demand/.test(l)))
+  stray.leaves.length === 2 && stray.logs.some(l => /allowOnDemand names non-on-demand/.test(l)))
 
 // The panel roster must be legible without reading prompts — operators diagnose from this line.
 check('the engine logs the resolved panel',
-  def.logs.some(l => /^panel: /.test(l)) && def.result.panel.join(',') === 'glm-5.3,deepseek-v4-flash,qwen3.8-flash,kimi-k2.7-code,hy3')
+  def.logs.some(l => /^panel: /.test(l)) && def.result.panel.join(',') === 'glm-5.3,qwen3.8-flash,kimi-k2.7-code,hy3')
+
+// --- other providers ------------------------------------------------------------------------------
+// The Go plan can be dry or region-gated; the council must be able to run where there IS credit.
+const other = await runEngine({ ...base, tier: 'low', models: { mimo: 'opencode/mimo-v2.5-free' } })
+check('a provider-qualified alias is honoured verbatim, not forced onto the Go plan',
+  other.leaves.includes('opencode/mimo-v2.5-free'))
+// kimi-for-coding/k3 is K3 on the operator's OWN subscription - a different account, so the Go-plan
+// vendor bar must NOT follow it there. If this regresses, a paid-for model silently becomes k2.7-code.
+check('the Go-plan kimi bar does NOT apply to another provider',
+  (await runEngine({ ...base, tier: 'low', models: { mimo: 'kimi-for-coding/k3' } })).leaves.includes('kimi-for-coding/k3'))
+check('a bare alias still resolves against the default provider',
+  (await runEngine({ ...base, tier: 'low', models: { mimo: 'glm-5.1' } })).leaves.includes('opencode-go/glm-5.1'))
 
 process.exit(ok ? 0 : 1)
