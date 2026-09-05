@@ -211,9 +211,18 @@ self-contained prompt every time:
 
 ## Judging the outcome — verdict, retry, salvage (NOT a naive `type:text` check)
 
-The watchdog enforces the idle and hard-cap limits. After the call, classify the JSON stream. (If you
-saved the stream to a file, `python3 -m transcript_miner opencode <file> --json` returns the verdict
-+ salvageable content directly — dogfood it; otherwise apply the same taxonomy by eye.)
+The watchdog enforces the idle and hard-cap limits. After the call, classify the JSON stream with
+ONE command — do not hand-parse it:
+
+```bash
+python3 ~/.claude/skills/transcript-miner/transcript_miner verdict <stream-file> --json
+```
+
+(the same tool diagnoses codex and kimi streams, so every wrapper uses one taxonomy). It prints
+`backend`, `model`, `finish_reason`, `input_tokens`/`output_tokens`, `text` (the final answer) and the
+`verdict` below; add `--salvage` to dump recoverable reasoning. Exit 0 means `ok`; any other verdict
+exits 1 — read the `verdict` field, not the exit code. Report the token counts under Concerns so the
+caller can track backend cost. Only if the tool itself is missing apply the taxonomy by eye:
 
 - **ok** — a real `type:"text"` answer part AND the terminal `step_finish` reason is NOT `length` →
   relay as `status: OK`. (If there IS a text part but the terminal reason is `length`, the answer was

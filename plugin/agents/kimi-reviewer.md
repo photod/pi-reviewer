@@ -27,10 +27,10 @@ CLI once made reviews quietly fall back to self-analysis — that is the #1 sile
 
 ## CRITICAL: invocation
 
-Use EXACTLY this pattern (verified against kimi-code v0.11.0):
+Use EXACTLY this pattern (verified against kimi-code v1.49.0; v0.11.0 accepted it without `--print`):
 
 ```bash
-kimi -m kimi-code/k3-256k -p "PROMPT" --output-format stream-json < /dev/null
+kimi --print -m kimi-code/k3-256k -p "PROMPT" --output-format stream-json < /dev/null
 ```
 
 - **`-m, --model`** pins the model for this invocation. **Always pass it.** Default to
@@ -41,15 +41,17 @@ kimi -m kimi-code/k3-256k -p "PROMPT" --output-format stream-json < /dev/null
   reporting failure, not a preference. These aliases are the **CLI's own** namespace: the same model
   is `kimi-code/k3-256k` here and `kimi-for-coding/k3-256k` in opencode — never pass an opencode path
   to `kimi -m`. `kimi doctor` prints which `config.toml` is live and therefore which aliases exist.
-- **`-p, --prompt`** runs one prompt non-interactively and exits — this is the whole call. There is no
-  `--print` flag (that was legacy kimi-cli; this binary was renamed to kimi-code — do not use it).
+- **`-p, --prompt`** runs one prompt non-interactively and exits — this is the whole call.
+- **`--print`** is REQUIRED on kimi-code >= 1.49.0: `--output-format` is only accepted in print mode
+  (`Output format is only supported for print UI` otherwise). Older builds ignored it; keep it always.
+  It is NOT an approval/auto flag — never add `-y`, `--yolo`, or `--auto`.
 - **`--output-format stream-json`** is what makes this a clean relay (see "Parsing" below). It is only
-  valid together with `-p`.
+  valid together with `--print` and `-p`.
 - **`< /dev/null` is MANDATORY** — kimi can hang waiting on a TTY stdin otherwise. Verified harmless.
 - **Model:** omit `-m` to use the host's `default_model` (recommended — respects the operator's config;
   1M-context `k3` on a stock kimi-code setup, which suits whole-file reviews). To force the
   code-specialised model, add `-m kimi-code/kimi-for-coding` (K2.7 Coding, 256K).
-- **Resume a session:** `kimi -S <session_id> -p "follow-up" --output-format stream-json < /dev/null`
+- **Resume a session:** `kimi --print -S <session_id> -p "follow-up" --output-format stream-json < /dev/null`
   (`-S`/`--session` is the documented flag; `-r` is an undocumented hidden alias for it — which is why
   kimi's own output prints `kimi -r …`; prefer `-S`). Continue the latest session in the cwd: `-C`.
 - Use bare `kimi` (PATH resolves it) — never hardcode a binary path; the current binary is kimi-code,
@@ -63,7 +65,20 @@ tool calls — those flags would remove even the deny rules. A reviewer must nev
 
 ## Parsing the stream-json output
 
-stdout is one JSON object per line:
+Save stdout to a file and classify it with ONE command — do not hand-parse it:
+
+```bash
+python3 ~/.claude/skills/transcript-miner/transcript_miner verdict <stream-file> --json
+```
+
+It returns `backend: kimi`, `model`, `finish_reason`, `text` (the final assistant message) and a
+`verdict`: `ok` → relay as `status: OK`; `truncated` (Kimi hit its step cap — the stream ends with a
+plain-text `Max number of steps reached` line) or `reasoning-only` → retry ONCE with a sharper
+direct-answer instruction, else relay the `--salvage` text as `status: PARTIAL (truncated — best-effort)`;
+`tool-only` / `empty` → `status: UNAVAILABLE`. Exit 0 means `ok`; read the `verdict` field, not the
+exit code. Kimi does not report token usage on this stream (the fields are null, not 0).
+
+For reference, stdout is one JSON object per line:
 
 - The **review** is the `content` of the assistant message(s): `{"role":"assistant","content":"…"}`.
   If Kimi read files first, you'll also see `tool_calls` / `{"role":"tool",…}` lines — ignore those and

@@ -47,7 +47,20 @@ codex exec --sandbox read-only --skip-git-repo-check -C WORKDIR "PROMPT" --json
 
 ## Parsing the `--json` output
 
-stdout is JSONL. The review is the **text of the final agent message**:
+Save stdout to a file and classify it with ONE command — do not hand-parse it:
+
+```bash
+python3 ~/.claude/skills/transcript-miner/transcript_miner verdict <stream-file> --json
+```
+
+It returns `backend: codex`, `model`, `input_tokens`/`output_tokens` (from `turn.completed.usage`),
+`text` (the final `agent_message`) and a `verdict`: `ok` → relay as `status: OK`; `truncated` /
+`reasoning-only` → retry ONCE with a sharper direct-answer instruction, else relay the `--salvage`
+text as `status: PARTIAL (truncated — best-effort)`; `tool-only` / `empty` → `status: UNAVAILABLE`.
+Exit 0 means `ok`; read the `verdict` field, not the exit code. Report the token counts under Concerns
+so the caller can track backend cost.
+
+For reference, stdout is JSONL. The review is the **text of the final agent message**:
 `{"type":"item.completed","item":{"type":"agent_message","text":"…"}}` → take `item.text`. Ignore
 `thread.started` / `turn.started` / `turn.completed` events and any non-JSON stderr noise (Codex prints
 occasional `ERROR …` diagnostics to stderr — those are not the review). If **no** `agent_message` item
