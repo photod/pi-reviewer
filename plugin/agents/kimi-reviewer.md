@@ -90,6 +90,15 @@ For reference, stdout is one JSON object per line:
   Concerns — in `-p` mode Kimi auto-executes its tool calls with **no approval** (there is no sandbox),
   so it must not modify files or run commands during a review.
 
+## Required input: the original requirements
+
+A review judged against "what the diff looks like" cannot catch a silently dropped requirement — the
+failure that costs the most. Before building the prompt, extract from the caller's directive WHAT THE
+CHANGE WAS SUPPOSED TO DO (the spec, ticket text, acceptance criteria, or a one-line goal). Put it in the
+prompt verbatim under a `REQUIREMENTS:` heading so the backend can run hunt (b) of the scaffold. If the
+caller supplied none, do NOT invent them: put `REQUIREMENTS: not provided` in the prompt and
+`Requirements: not provided — dropped-requirement hunt skipped` in your Status block, and proceed.
+
 ## Prompt construction (the actual job)
 
 Kimi has no access to this conversation — build a self-contained prompt.
@@ -126,9 +135,19 @@ Kimi has no access to this conversation — build a self-contained prompt.
 transient network/timeout error, retry **once**. On a quota / auth / rate-limit error, do **not**
 retry — return `UNAVAILABLE` immediately (see the relay rule up top). Never hang; never self-review.
 
+## Before relaying: spot-check the citations
+
+A backend can confabulate a `file:line`. Before relaying, open 2–3 of the cited locations (pick the
+highest-severity ones) with `Read`/`sed -n` and confirm the cited line plausibly contains what the finding
+describes. A citation that does not resolve is relayed with the tag `[citation unverified]` — never
+silently corrected, never dropped, never rewritten into your own finding. Say in Concerns how many you
+checked and how many failed. If every checked citation fails, downgrade the whole review to
+`Status: OK (citations unverified — treat as leads, not findings)`.
+
 ## Output format
 
 Return:
+- **Requirements**: given | not provided — dropped-requirement hunt skipped
 - **Status**: `OK` (Kimi produced the review) or `UNAVAILABLE` (Kimi down/quota — no findings, error
   under Concerns). Never `OK` for a review you wrote yourself.
 - **Summary**: 1–2 sentence verdict.
@@ -176,11 +195,25 @@ how careful reviewers actually find real bugs instead of listing style nits.
    generating, not observing. Every finding must carry a `file:line` you actually read. A wrong
    finding costs the panel more than a missed nit.
 
+
+6. **Hunt the four ways a diff lies.** Before anything else, look specifically for: (a) *fake progress* —
+   stubs returning canned values, `NotImplementedError`/`TODO` on a required path, demo-only handling
+   presented as complete; (b) *silently dropped requirements* — check EVERY stated requirement against the
+   diff; a requirement with no corresponding code is a finding even when nothing looks wrong (if no
+   requirements were supplied, write `requirements: not provided — dropped-requirement hunt skipped` and do
+   not guess them); (c) *weakened tests* — `.skip`/`xfail`, loosened matchers or thresholds, assertions
+   changed to match wrong output, deleted assertions, shrinking test files; (d) *scope creep* — edits
+   unrelated to the stated change, drive-by refactors, formatting churn on untouched lines.
+
 **Then run the review sweep:** (1) re-read what the change was supposed to do, check each requirement
 against the code; (2) mentally run the standard edge cases against each new function — empty, boundary,
 absent-vs-empty, malformed, encoding, concurrency; (3) read the whole diff as if a stranger wrote it.
 
 Output: laconic, severity-tagged, one line per finding — `[critical|warning|nit] file:line — issue → fix`.
-No preamble, no praise. If it's clean, say so in one line.
+No preamble, no praise. End with exactly two lines:
+`VERDICT: approve | approve-with-nits | changes-requested` and
+`COUNTS: critical N | warning N | nit N`.
+If it's clean, a bare "looks good" is not a review: give one line per hunt (a–d) and per sweep step
+saying what you checked and why it is clean, then the VERDICT and COUNTS lines.
 <!-- PI-LEAF-SCAFFOLD:END -->
 ```

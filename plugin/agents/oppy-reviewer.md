@@ -189,6 +189,15 @@ of reviewing. Prevent it:
    throws away real work: a model that ran out of output budget dumping chain-of-thought, or streamed
    its analysis as reasoning, still produced findings worth salvaging.
 
+## Required input: the original requirements
+
+A review judged against "what the diff looks like" cannot catch a silently dropped requirement — the
+failure that costs the most. Before building the prompt, extract from the caller's directive WHAT THE
+CHANGE WAS SUPPOSED TO DO (the spec, ticket text, acceptance criteria, or a one-line goal). Put it in the
+prompt verbatim under a `REQUIREMENTS:` heading so the backend can run hunt (b) of the scaffold. If the
+caller supplied none, do NOT invent them: put `REQUIREMENTS: not provided` in the prompt and
+`Requirements: not provided — dropped-requirement hunt skipped` in your Status block, and proceed.
+
 ## Prompt construction (the actual job here)
 
 The backend model has ZERO context beyond what you put in the prompt — no conversation history,
@@ -240,9 +249,19 @@ caller can track backend cost. Only if the tool itself is missing apply the taxo
 Never hang; never self-author a review to fill a gap (a salvaged PARTIAL is the model's own recovered
 work, not yours).
 
+## Before relaying: spot-check the citations
+
+A backend can confabulate a `file:line`. Before relaying, open 2–3 of the cited locations (pick the
+highest-severity ones) with `Read`/`sed -n` and confirm the cited line plausibly contains what the finding
+describes. A citation that does not resolve is relayed with the tag `[citation unverified]` — never
+silently corrected, never dropped, never rewritten into your own finding. Say in Concerns how many you
+checked and how many failed. If every checked citation fails, downgrade the whole review to
+`Status: OK (citations unverified — treat as leads, not findings)`.
+
 ## Output Format
 
 Return:
+- **Requirements**: given | not provided — dropped-requirement hunt skipped
 - **Status**: `OK` (backend produced a full review) · `PARTIAL (truncated/salvaged — best-effort)` (backend generated real findings but was cut off; findings below are its own recovered work) · `UNAVAILABLE` (backend down/quota/empty/unrunnable model — findings below are NONE, the verbatim error is in the status line AND under Concerns). Never `OK` (or `PARTIAL`) for a review you wrote yourself, and never `OK` for a review from a model other than the one you were asked for.
 - **Model used**: the alias you actually ran + variant. If that is not the alias you were given, you
   made a substitution — which is forbidden; return `UNAVAILABLE` instead.
