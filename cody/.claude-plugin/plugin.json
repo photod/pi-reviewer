@@ -1,7 +1,7 @@
 {
   "name": "cody",
   "description": "Bonus: OpenAI Codex CLI as a non-Claude reviewer (cody-reviewer, Fable-coached) and a write-mode worker (cody-worker). A quiet companion to the pi plugin — requires the `codex` CLI.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": {
     "name": "photod"
   },

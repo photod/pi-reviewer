@@ -19,7 +19,7 @@ return `UNAVAILABLE`:
 
 ```
 which codex        # must resolve
-codex --version    # verified against codex-cli 0.145.0
+codex --version    # verified against codex-cli 0.153.2
 ```
 
 Bring-your-own-CLI: `cody` ships **no** Codex credentials and makes **no** API calls of its own — it only
